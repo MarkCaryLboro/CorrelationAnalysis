@@ -1,0 +1,2 @@
+function rateTestAnalysis()
+end % rateTestAnalysis
