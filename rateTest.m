@@ -1,17 +1,33 @@
 classdef rateTest < correlationModel
     
+    properties ( SetAccess = immutable )
+        Design      correlationDesign        = rateDesign()                 % Design object
+    end % immutable properties
+    
     properties ( Constant = true )
         ModelName   string                                  = "rateTest"    % Name of model
     end % constant properties
     
     properties ( SetAccess = protected )
-        Reps        int8                                    = 3             % Number of replicates
     end % prootected properties
     
     methods
-        function obj = rateTest(  )
+        function obj = rateTest( DesignObj )
             %--------------------------------------------------------------
-            % 
+            % Construct a rateTest analysis object for analysing data for
+            % the battery facility correlation experiment "Rate Test".
+            %
+            % obj = rateTest( DesignObj );
+            %
+            % Input Arguments:
+            %
+            % DesignObj     --> rateDesign object
+            %--------------------------------------------------------------
+            if ( nargin < 1 ) || ~isa( DesignObj, 'rateDesign' )
+                error('Must supply a "rateDesign" object to the class constructor');
+            else
+                obj.Design = DesignObj;
+            end
         end
         
         function A = basis( obj, Reps ) 
@@ -21,7 +37,7 @@ classdef rateTest < correlationModel
             % A = obj.basis( Reps );
             % Input Arguments:
             %
-            % Reps  --> Number of replicates
+            % Reps  --> Number of replicates { obj.Reps }
             %--------------------------------------------------------------
         end % basis
         
@@ -30,6 +46,9 @@ classdef rateTest < correlationModel
             % Perform the required repeated measurments analysis
             %--------------------------------------------------------------
         end % fitModel
+        
+        function obj = defineModel( obj )
+        end % defineModel
     end % Ordinary and constructor methds
     
 end % rateTest
