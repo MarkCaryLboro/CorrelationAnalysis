@@ -1,0 +1,2 @@
+classdef correlationRateTestDesign
+end % correlationRateTestDesign

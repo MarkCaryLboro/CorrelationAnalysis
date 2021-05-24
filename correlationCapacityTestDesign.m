@@ -1,0 +1,2 @@
+classdef correlationCapacityTestDesign
+end % correlationCapacityTestDesign

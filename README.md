@@ -3,6 +3,7 @@ Battery testing facility correlation analysis package
 Classes:
 
 anova
+correlationDesign
 capacityTest
 capacityTestAnalysis
 correlationDataStore
