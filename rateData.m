@@ -1,2 +1,2 @@
-classdef rateData < correlationDataStore
+classdef rateData < dataStoreInt
 end % rateData
