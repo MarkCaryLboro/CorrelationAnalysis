@@ -1,2 +1,0 @@
-classdef correlationPulseTestDesign
-end % correlationPulseTestDesign

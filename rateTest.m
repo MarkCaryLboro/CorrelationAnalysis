@@ -9,7 +9,8 @@ classdef rateTest < correlationModel
     end % constant properties
     
     properties ( SetAccess = protected )
-    end % prootected properties
+        MleObj      mle                                                     % MLE analysis object
+    end % protected properties
     
     methods
         function obj = rateTest( DesignObj )
