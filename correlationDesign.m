@@ -16,7 +16,9 @@ classdef ( Abstract = true ) correlationDesign < handle
     properties ( SetAccess = protected, Dependent = true )
         Levels      int8                                                    % Number of levels for each factor
         NumFac      double                                                  % Number of factors
-        Design      table                                                   
+        Design      table                                                   % Design table in engineering units
+        Cat         logical                                                 % logical pointer to categorical variables
+        NumCat      int8                                                    
     end % Dependent properties    
     
     methods ( Abstract = true )
@@ -113,7 +115,71 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
         end % addFactor
         
-        function T = testPlan( obj )
+        function T = testPlan( obj, FileName )
+            %--------------------------------------------------------------
+            % Generate the experimental test plan.
+            %
+            % T = obj.testPlan( FileName );
+            %
+            % Input Arguments:
+            %
+            % FileName  --> Name of output file. The file is assumed to be
+            %               an Excel spread sheet. If no path information 
+            %               is provided, the file is stored in the current
+            %               directory. Optional argument. (string)
+            %
+            % Output Arguments:
+            %
+            % T         --> (table) test plan.
+            %--------------------------------------------------------------
+            if ( nargin > 1 ) && isstring( FileName )
+                Export2file = true;
+            elseif ( nargin > 1 ) && ischar( FileName )
+                Export2file = true;
+            else
+                Export2file = false;
+            end
+            %--------------------------------------------------------------
+            % Generate test plan
+            %--------------------------------------------------------------
+            obj = obj.design();                                             % Generate the design
+            T = repmat( obj.Design, obj.Reps, 1 );                          % Test plan
+            T = obj.sortDesign( T );                                        % Sort the design
+            %--------------------------------------------------------------
+            % Generate RunOrder Vector
+            %--------------------------------------------------------------
+            H = height( obj.Design );                                       % Number of unique runs
+            RunOrder = zeros( H * double( obj.Reps ), 1 );                 
+            Finish = 0;
+            for Q = 1:obj.Reps
+                Start = Finish + 1;
+                Finish = Start + H - 1;
+                RunOrder( Start:Finish ) = randperm( H ).';
+            end
+            RunOrder = array2table( RunOrder );
+            T = horzcat( RunOrder, T );
+            if Export2file
+                FileName = string( FileName );
+                [ Fpath, Fname, ~ ] = fileparts( FileName );
+                if ~isfolder( Fpath )
+                    Fpath = cd;                                             % Apply default
+                end
+                Ext = ".xlsx";
+                Fname = strjoin( [ Fname, Ext ], '' );                      % Ensure is an "xlsx" file
+                FileName = fullfile( Fpath, Fname );                        % Full file specification                    
+                %----------------------------------------------------------
+                % Write the test plan to an XLSX file
+                %----------------------------------------------------------
+                H = height( T );
+                W = width( T );
+                Start = "A1";
+                Col = upper( string( char( W + 96 ) ) );
+                Row = string( H );
+                Finish = strjoin( [ Col, Row ], '' );
+                writetable( T, FileName, 'Sheet', 1, 'Range', ...
+                            strjoin( [ Start, Finish ], ":" ),...
+                            'WriteRowNames', true );
+            end
         end % testPlan
     end % Ordinary methods
     
@@ -131,12 +197,11 @@ classdef ( Abstract = true ) correlationDesign < handle
         function D_ = get.Design( obj )
             % Return the design in engineering units
             D_ = obj.D;
-            Cat = strcmpi( obj.Factor.Type, "categorical" );
-            N = sum( Cat );
-            Vcat = obj.Factor.Properties.RowNames( Cat );                   % Point to categorical variables
+            N = obj.NumCat;
+            Vcat = obj.Factor.Properties.RowNames( obj.Cat );               % Point to categorical variables
             Vcat = string( Vcat );
-            L = obj.Levels( Cat );
-            Cats = obj.Factor{ Cat, "Levels" };
+            L = obj.Levels( obj.Cat );
+            Cats = obj.Factor{ obj.Cat, "Levels" };
             T = repmat( "", height( D_ ), 1 );
             for Q = 1:N
                 V = string( Cats{ Q } );
@@ -151,7 +216,64 @@ classdef ( Abstract = true ) correlationDesign < handle
                 D_.( Vcat( Q ) ) = T;
             end
         end
+        
+        function Cat = get.Cat( obj )
+            % Return logical pointer to categorical variables
+             Cat = strcmpi( obj.Factor.Type, "categorical" ).'; 
+        end
+        
+        function Nc = get.NumCat( obj )
+            % Return number of categorical variables
+            Nc = int8( sum( obj.Cat ) );
+        end
     end % Get set methods    
+    
+    methods ( Access = private )
+        function T = sortDesign( obj, T, Vars )
+            %--------------------------------------------------------------
+            % Sort the design by categorical variables first and then in
+            % terms of number of levels of the continuous variables. It is
+            % assumed the lower the number of levels the more difficult the
+            % factor is to set. Refer to this as standard order
+            %
+            % T = obj.sortDesign( T );
+            %
+            % Use this syntax to sort the design in the order specified
+            %
+            % T = obj.sortDesign( T, Vars );
+            %
+            % Input Arguments:
+            % 
+            % T     --> Design table
+            % Vars  --> List of design variables to sort design by
+            %--------------------------------------------------------------
+            if ( nargin < 3 )
+                Vars = obj.stdOrder();
+            end
+            T = sortrows( T, Vars );
+        end % sortDesign
+        
+        function V = stdOrder( obj )
+            %--------------------------------------------------------------
+            % Sort the design by categorical variables first and then in
+            % terms of number of levels of the continuous variables. It is
+            % assumed the lower the number of levels the more difficult the
+            % factor is to set. Refer to this as standard order.
+            %
+            % V = obj.stdOrder();
+            %--------------------------------------------------------------
+            FacNames = obj.Factor.Properties.RowNames;
+            Cats = FacNames( obj.Cat ).';
+            Lcat = obj.Levels( obj.Cat );
+            [ ~, Idx ] = sort( Lcat );
+            Cats = Cats( Idx );
+            Cons = FacNames( ~obj.Cat ).';
+            Lcon = obj.Levels( ~obj.Cat );
+            [ ~, Idx ] = sort( Lcon );
+            Cons = Cons( Idx );
+            V = horzcat( Cats, Cons );
+        end % stdOrder
+    end % private methods
     
     methods ( Static = true )
         function Max = getMaxLevels( Levels, Type)
