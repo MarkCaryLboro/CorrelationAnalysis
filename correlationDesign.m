@@ -228,7 +228,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         end
     end % Get set methods    
     
-    methods ( Access = private )
+    methods ( Access = protected )
         function T = sortDesign( obj, T, Vars )
             %--------------------------------------------------------------
             % Sort the design by categorical variables first and then in
@@ -252,7 +252,9 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
             T = sortrows( T, Vars );
         end % sortDesign
-        
+    end % protected methods
+    
+    methods ( Access = private ) 
         function V = stdOrder( obj )
             %--------------------------------------------------------------
             % Sort the design by categorical variables first and then in

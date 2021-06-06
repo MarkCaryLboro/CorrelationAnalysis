@@ -1,4 +1,4 @@
-classdef correlationModel
+classdef ( Abstract = true ) correlationModel
     % A container for the repeated measurements identification algorithm
     % for the battery test facility correlation experiment
     
@@ -19,6 +19,10 @@ classdef correlationModel
     properties ( Access = private )
     end % private properties
     
+    properties( SetAccess = protected, Dependent = true )
+        Factor  table                                                       % Factor information 
+    end % dependent properties
+    
     properties( Access = private, Dependent = true )
         Dc      double                                                      % Coded design matrix
     end % Private and dependent properties
@@ -34,6 +38,11 @@ classdef correlationModel
     
     methods
         function Dc = get.Dc( obj )
+        end
+        
+        function F = get.Factor( obj )
+            % Return factor definition table
+            F = obj.Design.Factor;
         end
     end % get set methods
     

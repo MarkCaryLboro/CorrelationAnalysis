@@ -30,12 +30,13 @@ classdef rateDesign < correlationDesign
             Bc = obj.Factor.Max.';
             T = obj.code( T, min( T ), max( T ), Ac, Bc );
             obj.D = array2table( T );
+            obj.D.Properties.VariableNames = ...
+                string( obj.Factor.Properties.RowNames ).';
+            obj.D = obj.sortDesign( obj.D );
             H = height( obj.D );
             RunNumber = ( 1:H ).';
             RunNumber = array2table( RunNumber );
             obj.D = horzcat( RunNumber, obj.D );
-            Vars = [ "RunNumber", string( obj.Factor.Properties.RowNames ).' ];
-            obj.D.Properties.VariableNames = Vars;
         end % design
     end % constructor and ordinary methods
 end % correlationDesign
