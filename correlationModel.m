@@ -24,21 +24,26 @@ classdef ( Abstract = true ) correlationModel
     end % dependent properties
     
     properties( Access = private, Dependent = true )
-        Dc      double                                                      % Coded design matrix
     end % Private and dependent properties
     
     methods ( Abstract = true )
         A = basis( obj, D )                                                 % Generate basis function matrix                                                        
         obj = fitModel( obj, D )                                            % Perform the required analysis
-        obj = defineModel( obj )
+        obj = defineModel( obj )                                            % Define model
     end % abstract method signatures
     
     methods
     end % ordinary methods
     
     methods
-        function Dc = get.Dc( obj )
-        end
+        function Dc = codedDesignMatrix( obj )
+            %--------------------------------------------------------------
+            % Generate coded design matrix
+            %
+            % Dc = obj.codedDesignMatrix();
+            %--------------------------------------------------------------
+            Dc = obj.Design.testPlan();
+        end % codedDesignMatrix
         
         function F = get.Factor( obj )
             % Return factor definition table
