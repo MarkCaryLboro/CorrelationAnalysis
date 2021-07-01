@@ -59,10 +59,10 @@ classdef ( Abstract = true ) correlationDesign < handle
             %--------------------------------------------------------------
             arguments
                 obj
-                Name(:,1)       string                  {mustBeNonempty( Name ) }
-                Symbol(:,1)    string                   {mustBeNonempty( Symbol ) }
+                Name(:,1)       string                  { mustBeNonempty( Name ) }
+                Symbol(:,1)     string                  { mustBeNonempty( Symbol ) }
                 Units(:,1)      string
-                Levels(:,1)     cell                    {mustBeNonempty( Levels ) }
+                Levels(:,1)     cell                    { mustBeNonempty( Levels ) }
                 Type(:,1)       correlationVariableType 
             end
             P = numel( Name );
