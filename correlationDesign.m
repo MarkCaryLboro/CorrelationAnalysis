@@ -5,8 +5,9 @@ classdef ( Abstract = true ) correlationDesign < handle
     end % immutable properties
     
     properties ( SetAccess = protected )
-        Factor      table                         = table.empty( 0, 6 )     % Factor definition table
+        Factor      table                         = table.empty( 0, 7 )     % Factor definition table
         Reps(1,1)   int8                          = 3                       % Number of replicates
+        Order(1,:)  int8                                                    % Order of sort
     end % protected properties
     
     properties ( Access = protected )
@@ -18,7 +19,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         NumFac      double                                                  % Number of factors
         Design      table                                                   % Design table in engineering units
         Cat         logical                                                 % logical pointer to categorical variables
-        NumCat      int8                                                    
+        NumCat      int8                                                    % Number of categorical variables
     end % Dependent properties    
     
     methods ( Abstract = true )
@@ -47,14 +48,14 @@ classdef ( Abstract = true ) correlationDesign < handle
             %--------------------------------------------------------------
             % Add a factor to the Factor definition table
             %
-            % obj = obj.addFactor( Name, Symbol, Units, Levels );
+            % obj = obj.addFactor( Name, Symbol, Units, Levels, Type );
             %
             % Input Arguments:
             %
             % Name      --> (string) (px1) Array of factor names
             % Symbol    --> (string) (px1) Array of factor symbols
             % Units     --> (string) (px1) Array of factor units
-            % Levels    --> (cell) Factor levels
+            % Levels    --> (cell) (px1) Cell array of factor levels
             % Type      --> (string) Either {"continuous"} or "categorical"
             %--------------------------------------------------------------
             arguments
@@ -62,7 +63,7 @@ classdef ( Abstract = true ) correlationDesign < handle
                 Name(:,1)       string                  { mustBeNonempty( Name ) }
                 Symbol(:,1)     string                  { mustBeNonempty( Symbol ) }
                 Units(:,1)      string
-                Levels(:,1)     cell                    { mustBeNonempty( Levels ) }
+                Levels          cell                    { mustBeNonempty( Levels ) }
                 Type(:,1)       correlationVariableType 
             end
             P = numel( Name );
@@ -82,10 +83,11 @@ classdef ( Abstract = true ) correlationDesign < handle
             %--------------------------------------------------------------
             Max = obj.getMaxLevels( Levels, Type);
             Min = obj.getMinLevels( Levels, Type);
+            NumLevels = obj.getNumLevels( Levels );
             %--------------------------------------------------------------
             % Generate a table of factor data
             %--------------------------------------------------------------
-            T = table( Symbol, Units, Min, Max, Levels, Type );
+            T = table( Symbol, Units, Min, Max, Levels, NumLevels,Type );
             T.Properties.RowNames = Name;
             if isempty( obj.Factor )
                 %----------------------------------------------------------
@@ -101,7 +103,7 @@ classdef ( Abstract = true ) correlationDesign < handle
             FacExist = string( obj.Factor.Properties.RowNames );
             for Q = 1:numel( Name )
                 Idx = strcmpi( Name( Q ), FacExist );
-                if isempty( Idx )
+                if isempty( Idx ) || all( ~Idx )
                     %------------------------------------------------------
                     % Assign new row
                     %------------------------------------------------------
@@ -143,21 +145,9 @@ classdef ( Abstract = true ) correlationDesign < handle
             % Generate test plan
             %--------------------------------------------------------------
             obj = obj.design();                                             % Generate the design
-            T = repmat( obj.Design, obj.Reps, 1 );                          % Test plan
-            T = obj.sortDesign( T );                                        % Sort the design
-            %--------------------------------------------------------------
-            % Generate RunOrder Vector
-            %--------------------------------------------------------------
-            H = height( obj.Design );                                       % Number of unique runs
-            RunOrder = zeros( H * double( obj.Reps ), 1 );                 
-            Finish = 0;
-            for Q = 1:obj.Reps
-                Start = Finish + 1;
-                Finish = Start + H - 1;
-                RunOrder( Start:Finish ) = randperm( H ).';
-            end
-            RunOrder = array2table( RunOrder );
-            T = horzcat( RunOrder, T );
+            T = obj.D;                                                      % Design
+            V = T.Properties.VariableNames( obj.Order );
+            T = sortrows( T, V );
             if Export2file
                 FileName = string( FileName );
                 [ Fpath, Fname, ~ ] = fileparts( FileName );
@@ -278,12 +268,27 @@ classdef ( Abstract = true ) correlationDesign < handle
     end % private methods
     
     methods ( Static = true )
+        function N = getNumLevels( Levels )
+            %--------------------------------------------------------------
+            % Return number of levels of the factors
+            %
+            % N = obj.getNumLevels( Levels );
+            %
+            % Input Arguments:
+            %
+            % Levels    --> (cell) Factor levels
+            %--------------------------------------------------------------
+            N = cellfun( @numel, Levels );
+        end % getNumLevels
+        
         function Max = getMaxLevels( Levels, Type)
             %--------------------------------------------------------------
             % Return Max levels for all factors... If categorical variables
             % are present then assign an integer code to them.
             %
             % Max = obj.getMaxLevels( Levels, Type);
+            %
+            % Input Arguments:
             %
             % Levels    --> (cell) Factor levels
             % Type      --> (string) Either {"continuous"} or "categorical"
@@ -292,6 +297,12 @@ classdef ( Abstract = true ) correlationDesign < handle
             Con = ( Type == "CONTINUOUS" );
             Max = zeros( size( Type ) );
             Max( Con ) = cellfun( @max, Levels( Con ) );
+            %--------------------------------------------------------------
+            % Ensure Categorical variables are a cell array of strings
+            %--------------------------------------------------------------
+            for Q = 1:sum( Cat )
+                Levels{ Q } = string( Levels{ Q } );
+            end
             Max( Cat ) = cellfun( @numel, Levels( Cat ) );
         end % getMaxLevels
                 
@@ -301,6 +312,8 @@ classdef ( Abstract = true ) correlationDesign < handle
             % are present then assign an integer code to them.
             %
             % Max = obj.getMaxLevels( Levels, Type);
+            %
+            % Input Arguments:
             %
             % Levels    --> (cell) Factor levels
             % Type      --> (string) Either {"continuous"} or "categorical"
