@@ -1,9 +1,9 @@
-classdef ( Abstract = true ) correlationModel
+classdef ( Abstract = true ) correlationModel < handle
     % A container for the repeated measurements identification algorithm
     % for the battery test facility correlation experiment
     
     properties ( SetAccess = immutable, Abstract = true )
-        Design      correlationDesign                                       % Design object
+        Design                                                              % Design object
     end % immutable properties
     
     properties ( SetAccess = protected, Abstract = true )

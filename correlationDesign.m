@@ -20,6 +20,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         Design      table                                                   % Design table in engineering units
         Cat         logical                                                 % logical pointer to categorical variables
         NumCat      int8                                                    % Number of categorical variables
+        FacNames    string                                                  % List of factor names
     end % Dependent properties    
     
     methods ( Abstract = true )
@@ -179,6 +180,13 @@ classdef ( Abstract = true ) correlationDesign < handle
             L = cellfun( @numel, obj.Factor.Levels ).';
         end
         
+        function F = get.FacNames( obj )
+            % Return list of factor names
+            F = obj.Factor.Properties.RowNames;
+            F = string( F );
+            F = reshape( F, 1, numel( F ) );
+        end
+        
         function N = get.NumFac( obj )
             % Return number of factors
             N = height( obj.Factor );
@@ -322,7 +330,7 @@ classdef ( Abstract = true ) correlationDesign < handle
             Min = ones( size( Type ) );
             Min( Con ) = cellfun( @min, Levels( Con ) );
         end % getMinLevels
-        
+
         function Dc = code( D, A, B, Ac, Bc )
             %--------------------------------------------------------------
             % Code the level-2 covariate data onto an arbitrary scale...

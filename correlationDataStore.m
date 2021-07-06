@@ -24,11 +24,33 @@ classdef ( Abstract = true ) correlationDataStore < handle
     end % abstract methods signature
     
     methods
+        function Ok = channelPresent( obj, Channels )
+            %--------------------------------------------------------------
+            % Return logical output if supplied signal name is present in
+            % the datastore.
+            %
+            % Ok = obj.channelPresent( Channels );
+            %
+            % Input Arguments:
+            %
+            % Channels  --> (string) list of data channels to search for
+            %--------------------------------------------------------------
+            arguments
+                obj
+                Channels (1,:)  string        { mustBeNonempty( Channels ) }
+            end
+            Ok = false( size( Channels ) );
+            N = numel( Channels );
+            for Q = 1:N
+                Ok( Q ) = any( strcmpi( Channels( Q ), obj.Variables ) );
+            end
+        end % channelPresent
+        
         function obj = addData( obj, Fname )
             %--------------------------------------------------------------
             % Add data to existing data table. 
             %
-            % obj = obj.addData( Data );
+            % obj = obj.addData( Fname );
             %
             % Input Arguments:
             %
@@ -37,7 +59,13 @@ classdef ( Abstract = true ) correlationDataStore < handle
             %--------------------------------------------------------------
             arguments
                 obj(1,1)            
-                Fname        string         { mustBeFile( Fname ) }
+                Fname        string         
+            end
+            %--------------------------------------------------------------
+            % check file exists
+            %--------------------------------------------------------------
+            if ~isfile( Fname )
+                error( 'File "%s" does not exist', Fname );
             end
             %--------------------------------------------------------------
             % Check the file format is supported
@@ -117,11 +145,10 @@ classdef ( Abstract = true ) correlationDataStore < handle
                     error('Must supply a valid file name for data import'); 
                 end     
             elseif isfile( FileName )
-                [ Fpath, FileName, Ext ] = fileparts( which( FileName ) );
+                [ Fpath, FileName, Ext ] = fileparts( FileName );
                 FileName = strjoin( string( { FileName, Ext } ), '' );
             end
             FileName = fullfile( Fpath, FileName );
-            Ok = obj.chkFileFormat( FileName );
             %--------------------------------------------------------------
             % Find limits of data in excel spreadsheet
             %--------------------------------------------------------------
