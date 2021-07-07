@@ -1,8 +1,9 @@
 classdef ( Abstract = true ) correlationDesign < handle
     % Abstract interface class for correlation study designs
     
-    properties ( SetAccess = immutable )
-    end % immutable properties
+    properties ( Constant = true, Abstract = true )
+        TestType    string
+    end % constant & abstract properties
     
     properties ( SetAccess = protected )
         Factor      table                         = table.empty( 0, 7 )     % Factor definition table

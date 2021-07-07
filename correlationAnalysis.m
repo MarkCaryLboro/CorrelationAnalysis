@@ -9,10 +9,12 @@ classdef correlationAnalysis
         ReportObj   (1,1)             correlationReport                     % Report generator
         Facility    (1,1)             string      = "Facility"              % Facility variable
         MatchList                     table                                 % List of matched factor and signal names
-        Response    (1,1)             string      = "DischargeCapacity"
+        Response    (1,1)             string      = "DischargeCapacity"     % Response variable
+        RespUnits   (1,1)             string      = "[Ah]"                  % Response units
     end
     
     properties ( SetAccess = protected, Dependent = true )
+        TestType    (1,1)           string                                  % Test type
         NumFacLvl   (1,1)           double                                  % Number of facilities
         FacNames    (1,:)           string                                  % Design Factor Names
         FacSymbols  (1,:)           string                                  % Design Factor Symbols
@@ -134,37 +136,32 @@ classdef correlationAnalysis
             %--------------------------------------------------------------
             D = obj.getData();
             %--------------------------------------------------------------
-            % Plot the data by temperature
+            % Generate the required plot
             %--------------------------------------------------------------
-            N = double( obj.DesignObj.NumFac - obj.DesignObj.NumCat );
-            Cat = obj.DesignObj.Cat;
-            ContFac = obj.DesignObj.Factor.Properties.RowNames( ~Cat );
-            ContFac = string( ContFac );
-            ContLvls = obj.DesignObj.Factor.NumLevels( ~Cat  );
-            figure;
-            Ax = repmat( axes, 1, N );
-            Facs = string( D.( obj.Facility ) );
-            for Q = 1:N
-                Ax( Q ) = subplot( 1, N, Q );    
-                Ax( Q ).NextPlot = "add";
-                X = D.( ContFac( Q ) );
-                T = unique( X ).';
-                Idx = ( D.( ContFac( Q ) ) == T );
-                for F = 1:obj.NumFacLvl
-                    %------------------------------------------------------
-                    % Plot the data by facility
-                    %------------------------------------------------------
-                    Fidx =  strcmpi( D.( obj.Facility ), Facs( F ) );
-                    X = D( Fidx, [ ContFac( Q ), obj.Response ] );
-                    X = table2array( X );
-                    Color = rand( 1, 3 );
-                    H = plot( Ax( Q ), X( :, 1 ), X( :, 2 ), 's' );
-                    H.MarkerSize = 8;
-                    H.MarkerFaceColor = Color;
-                    H.MarkerEdgeColor = Color;
-                end
+            switch lower( obj.TestType )
+                case "rate"
+                    Ax = obj.plotRateData( D );
+                case "pulse"
+                case "capacity"
             end
         end % plot
+        
+        function obj = setRespUnits( obj, Units )
+            %--------------------------------------------------------------
+            % Set the response variable units
+            %
+            % obj = obj.setRespUnits( Units );
+            %
+            % Input Arguments:
+            %
+            % Units     --> (string) Units 
+            %--------------------------------------------------------------
+            arguments
+                obj
+                Units   (1,1)   string = "[Ah]"
+            end
+            obj.RespUnits = Units;
+        end % setRespUnits
         
         function obj = setResponse( obj, Response )
             %--------------------------------------------------------------
@@ -209,11 +206,11 @@ classdef correlationAnalysis
             %--------------------------------------------------------------
             FacName = string( obj.MatchList.Properties.RowNames );
             N = obj.DesignObj.NumFac;
-             for Q = 1:N
-                 Signal = obj.MatchList.DataChannels( Q );
-                 Idx = strcmpi( D.Properties.VariableNames, Signal );
-                 D.Properties.VariableNames{ Idx } = char( FacName( Q ) );
-             end
+            for Q = 1:N
+                Signal = obj.MatchList.DataChannels( Q );
+                Idx = strcmpi( D.Properties.VariableNames, Signal );
+                D.Properties.VariableNames{ Idx } = char( FacName( Q ) );
+            end
         end % getData
         
         function Ok = matchDesign( obj )
@@ -243,7 +240,100 @@ classdef correlationAnalysis
             Fac = obj.DesignObj.Factor;
             L = Fac{ obj.Facility, "NumLevels" };
         end
+        
+        function T = get.TestType( obj )
+            % retrieve test type
+            T = obj.DesignObj.TestType;
+        end
     end % get/set methods
+    
+    methods ( Access = private )
+        function Ax = plotRateData( obj, D )
+            %--------------------------------------------------------------
+            % Plot the raw rate data sweeps for all institutions
+            %
+            % Ax = obj.plotRateData( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> (table) Data table 
+            %--------------------------------------------------------------
+            Cat = obj.DesignObj.Cat;              
+            %--------------------------------------------------------------
+            % Determine number of plots & Develop matric of continuous 
+            % factor levels.
+            %--------------------------------------------------------------
+            ContLvls = obj.DesignObj.Levels( ~Cat );
+            Lvls = fullfact( ContLvls );
+            Lvls = obj.DesignObj.mapLevels( Lvls );
+            R = ContLvls(1);
+            C = ContLvls(2);
+            ConFacs = obj.DesignObj.Factor.Properties.RowNames( ~Cat );
+            ConFacs = string( ConFacs );
+            NumPlots = prod( ContLvls );
+            %--------------------------------------------------------------
+            % Plot the data by continuous factors
+            %--------------------------------------------------------------
+            figure;
+            Ax = repmat( axes, R, C );
+            Facs = unique( string( D.( obj.Facility ) ) );
+            LegStr = true( obj.NumFacLvl, NumPlots );
+            Color = [ "red", "blue", "green", "magenta", "black", "cyan" ].';
+            for F = 1:numel( Facs )
+                %------------------------------------------------------
+                % Plot the data for the current factor settings by
+                % facility as a parameter
+                %------------------------------------------------------
+                Fidx =  strcmpi( D.( obj.Facility ), Facs( F ) );       % Point to the data for the current facility
+                %------------------------------------------------------
+                % Find the data corresponding to the current levels for
+                % the Fth facility
+                %------------------------------------------------------
+                X = D( Fidx, [ "Cycle", ConFacs.', obj.Response, obj.Facility ] );
+                for L = 1:NumPlots
+                    %--------------------------------------------------
+                    % Plot the facility data on each graph
+                    %--------------------------------------------------
+                    Ax( L ) = subplot( R, C, L );
+                    Ax( L ).NextPlot = "add";
+                    axes( Ax( L ) );                                    %#ok<LAXES>
+                    Idx = all( ( X{:,ConFacs.'} == Lvls( L, : ) ), 2 );
+                    Xd = X( Idx, : );
+                    H = plot( Xd.Cycle, Xd.( obj.Response ), 's' );
+                    if ~isempty( H )
+                        H.MarkerSize = 8;
+                        H.MarkerFaceColor = Color( F, : );
+                        H.MarkerEdgeColor = Color( F, : );
+                        xlabel( 'Cycle [#]', 'FontSize', 14 );
+                        Str = strjoin( [ obj.Response, obj.RespUnits ],...
+                            " " );
+                        ylabel( Str, 'FontSize', 14 );
+                        Str = sprintf('( %s, %s ) = ( %5.2f, %3.1d )',...
+                            ConFacs, Lvls( L, : ) );
+                        title( Str, 'FontSize', 14 );
+                        grid on;
+                    else
+                        %--------------------------------------------------
+                        % Set the corresponding logical legend string 
+                        % pointer to false
+                        %--------------------------------------------------
+                        LegStr( F, L ) = false;
+                    end
+                end
+            end
+            %--------------------------------------------------------------
+            % Add legends
+            %--------------------------------------------------------------
+            for Q = 1:numel( Ax )
+                axes( Ax( Q ) );                                            %#ok<LAXES>
+                Ax( Q ).FontSize = 12;
+                warning off;
+                legend( Facs( LegStr( :, Q ) ), 'Location', 'eastoutside',...
+                                              'Orientation', 'Vertical' );
+                warning on;
+            end
+        end % plotRateData
+    end % private methods
 end % correlationAnalysis
 
 function mustBeDataObj( DataObj )

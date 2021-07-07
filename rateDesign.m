@@ -1,8 +1,9 @@
 classdef rateDesign < correlationDesign
     % Rate test design object
       
-    properties ( SetAccess = protected )
-    end % protected properties
+    properties ( Constant = true )
+        TestType    string          = "Rate";
+    end % constant & abstract properties
     
     methods
         function obj = design( obj, Replicates, SortOrder )
@@ -81,21 +82,6 @@ classdef rateDesign < correlationDesign
                 obj.Order = 1:obj.NumFac;
             end
         end % setSortOrder
-    end % constructor and ordinary methods
-    
-    methods ( Access = protected )
-        function S = getStandardOrder( obj )
-            %--------------------------------------------------------------
-            % Return the standard order. Sort by categorical variables
-            % first and then continuous. Assumes the lower the number of
-            % levels the more difficult the factor is to change.
-            %
-            % S = obj.getStandardOrder();
-            %--------------------------------------------------------------
-            [ ~, Idx ] = sort( obj.Factor.NumLevels );
-            C = ( obj.Factor.Type == "CATEGORICAL" );
-            S = [ Idx( C ); Idx( ~C ) ].';
-        end % getStandardOrder
         
         function T = mapLevels( obj, T )
             %--------------------------------------------------------------
@@ -116,6 +102,21 @@ classdef rateDesign < correlationDesign
                     T( :, Q ) = Lev( T( :, Q ) ).';
                 end
             end
-        end
+        end % mapLevels
+    end % constructor and ordinary methods
+    
+    methods ( Access = protected )
+        function S = getStandardOrder( obj )
+            %--------------------------------------------------------------
+            % Return the standard order. Sort by categorical variables
+            % first and then continuous. Assumes the lower the number of
+            % levels the more difficult the factor is to change.
+            %
+            % S = obj.getStandardOrder();
+            %--------------------------------------------------------------
+            [ ~, Idx ] = sort( obj.Factor.NumLevels );
+            C = ( obj.Factor.Type == "CATEGORICAL" );
+            S = [ Idx( C ); Idx( ~C ) ].';
+        end % getStandardOrder
     end % protected methods
 end % correlationDesign
