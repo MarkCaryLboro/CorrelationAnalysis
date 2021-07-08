@@ -13,8 +13,9 @@ classdef ( Abstract = true ) correlationModel < handle
         ModelName   string                                                  % Name of model
     end % Constant & abstract properties
     
-    properties ( Constant = true )
-    end % constant properties
+    properties ( SetAccess = protected, Dependent = true )
+        NumFac      double                                                  % Number of design factors
+    end % dependent properties
     
     properties ( Access = private )
     end % private properties
@@ -36,6 +37,11 @@ classdef ( Abstract = true ) correlationModel < handle
     end % ordinary methods
     
     methods
+       function N = get.NumFac( obj )
+            % Return number of factors
+            N = obj.Design.NumFac;
+       end
+        
         function Dc = codedDesignMatrix( obj )
             %--------------------------------------------------------------
             % Generate coded design matrix

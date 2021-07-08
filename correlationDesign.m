@@ -12,7 +12,7 @@ classdef ( Abstract = true ) correlationDesign < handle
     end % protected properties
     
     properties ( Access = protected )
-        D           table                                                   % Design table
+        D           table                                                   % Design table (coded)
     end % protected  properties
     
     properties ( SetAccess = protected, Dependent = true )
