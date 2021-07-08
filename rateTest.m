@@ -1,7 +1,7 @@
 classdef rateTest < correlationModel
     
     properties ( SetAccess = immutable )
-        Design      correlationDesign        = rateDesign()                 % Design object
+        Design      correlationDesign                                       % Design object
     end % immutable properties
     
     properties ( Constant = true )
@@ -10,6 +10,7 @@ classdef rateTest < correlationModel
     
     properties ( SetAccess = protected )
         MleObj      mle                                                     % MLE analysis object
+        Model       supportedModelType                      = "linear "     % Facility model terms
     end % protected properties
     
     methods
@@ -48,7 +49,17 @@ classdef rateTest < correlationModel
             %--------------------------------------------------------------
         end % fitModel
         
-        function obj = defineModel( obj )
+        function obj = defineModel( obj, Model )
+            %--------------------------------------------------------------
+            % Define the experimental model
+            %
+            % obj = obj.defineModel( Model );
+            %
+            % Input Arguments:
+            %
+            % Model     --> (string) Facility model type, either {"linear"}
+            %               or "interaction"
+            %--------------------------------------------------------------
         end % defineModel
     end % Ordinary and constructor methds
     

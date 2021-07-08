@@ -8,6 +8,11 @@ classdef rateModel < correlationModel
         Design                                                              % Design object
     end % immutable properties  
     
+    properties ( SetAccess = protected )
+        MleObj      mle                                                     % MLE analysis object
+        Model       supportedModelType                      = "linear "     % Facility model terms
+    end % protected properties    
+    
     methods
         function obj = rateModel( DesignObj )
             %--------------------------------------------------------------
