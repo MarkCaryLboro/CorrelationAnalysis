@@ -119,6 +119,16 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
         end % addFactor
         
+        function X = export2ws( obj )
+            %--------------------------------------------------------------
+            % Export the design to the workspace in coded form. Output is a
+            % table.
+            %
+            % X = obj.export2ws();
+            %--------------------------------------------------------------
+            X = obj.D;   
+        end % export2ws
+        
         function T = testPlan( obj, FileName )
             %--------------------------------------------------------------
             % Generate the experimental test plan.
@@ -170,6 +180,37 @@ classdef ( Abstract = true ) correlationDesign < handle
                             'WriteRowNames', true );
             end
         end % testPlan
+        
+
+        function Dc = code( obj, D )
+            %--------------------------------------------------------------
+            % Code the level-2 covariate data onto the interval
+            % [ A, B ] --> [ -1, 1 ]. Categorical variables are not
+            % affected by the coding.
+            %
+            % Dc = obj.code( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> Engineering data vector
+            %--------------------------------------------------------------
+            [ G, C ] = obj.codeVars();
+            Dc = G .* D + C;
+        end % code 
+        
+        function D = decode( obj, Dc )
+            %--------------------------------------------------------------
+            % convert coded data to engineering units
+            %
+            % D = obj.decode( Dc );
+            %
+            % Input Arguments:
+            %
+            % Dc    --> Coded data vector
+            %--------------------------------------------------------------
+            [ G, C ] = obj.codeVars();
+            D = ( Dc - C ) ./ G;
+        end % decode
     end % Ordinary methods
     
     methods        
@@ -237,37 +278,6 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
             T = sortrows( T, Vars );
         end % sortDesign
-        
-
-        function Dc = code( obj, D )
-            %--------------------------------------------------------------
-            % Code the level-2 covariate data onto the interval
-            % [ A, B ] --> [ -1, 1 ]. Categorical variables are not
-            % affected by the coding.
-            %
-            % Dc = obj.code( D );
-            %
-            % Input Arguments:
-            %
-            % D     --> Engineering data vector
-            %--------------------------------------------------------------
-            [ G, C ] = obj.codeVars();
-            Dc = G .* D + C;
-        end % code 
-        
-        function D = decode( obj, Dc )
-            %--------------------------------------------------------------
-            % convert coded data to engineering units
-            %
-            % D = obj.decode( Dc );
-            %
-            % Input Arguments:
-            %
-            % Dc    --> Coded data vector
-            %--------------------------------------------------------------
-            [ G, C ] = obj.codeVars();
-            D = ( Dc - C ) ./ G;
-        end % decode
     end % protected methods
     
     methods ( Access = private ) 
@@ -291,7 +301,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         end % codeVars
     end % private methods
     
-    methods ( Static = true )
+    methods ( Static = true, Access = protected )
         function N = getNumLevels( Levels )
             %--------------------------------------------------------------
             % Return number of levels of the factors

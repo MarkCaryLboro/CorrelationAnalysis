@@ -88,6 +88,30 @@ classdef rateModel < correlationModel
     end % get/set methods
     
     methods ( Access = private )
+        function I = interactionTerms( obj, X )
+            %--------------------------------------------------------------
+            % Return continuous interaction terms
+            %
+            % I = obj.interactionTerms( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> (double) data in coded units
+            %--------------------------------------------------------------
+            Cont = ( obj.Design.Factor.Type == "CONTINUOUS" ).';
+            X = X( :, Cont );
+            [ N, C ] = size( X );
+            Nint = factorial( C )/ factorial( 2 )/factorial( C - 2 );
+            I = zeros( N, Nint );
+            K = 0;
+            for Q = 1:( C - 1 )
+                for R = ( Q + 1 ):C
+                    K = K + 1;
+                    I( :, K ) = X( :, Q ).*X( :, R );
+                end
+            end
+        end % interactionTerms
+        
         function Q = quadTerms( obj, X )
             %--------------------------------------------------------------
             % Return matrix of quadratic terms if a continuous factor has 3
@@ -97,9 +121,11 @@ classdef rateModel < correlationModel
             %
             % Input Arguments:
             %
-            % X     --> (double) data table in coded units
+            % X     --> (double) data in coded units
             %--------------------------------------------------------------
             Cont = ( obj.Design.Factor.Type == "CONTINUOUS" ).';
+            Cont = Cont & ( obj.Design.Factor.NumLevels.' > 2 );
+            Q = X( :, Cont ).^2;
         end
     end
 end % rateModel
