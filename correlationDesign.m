@@ -146,10 +146,7 @@ classdef ( Abstract = true ) correlationDesign < handle
             %--------------------------------------------------------------
             % Generate test plan
             %--------------------------------------------------------------
-            obj = obj.design();                                             % Generate the design
-            T = obj.D;                                                      % Design
-            V = T.Properties.VariableNames( obj.Order );
-            T = sortrows( T, V );
+            T = obj.Design;
             if Export2file
                 FileName = string( FileName );
                 [ Fpath, Fname, ~ ] = fileparts( FileName );
@@ -196,24 +193,13 @@ classdef ( Abstract = true ) correlationDesign < handle
         function D_ = get.Design( obj )
             % Return the design in engineering units
             D_ = obj.D;
-            N = obj.NumCat;
-            Vcat = obj.Factor.Properties.RowNames( obj.Cat );               % Point to categorical variables
-            Vcat = string( Vcat );
-            L = obj.Levels( obj.Cat );
-            Cats = obj.Factor{ obj.Cat, "Levels" };
-            T = repmat( "", height( D_ ), 1 );
-            for Q = 1:N
-                V = string( Cats{ Q } );
-                for R = 1:L( Q )
-                    %------------------------------------------------------
-                    % substitute the numerical coding for the fixed levels
-                    % for each categorical variable
-                    %------------------------------------------------------
-                    Idx = ( D_.( Vcat( Q ) ) == R );
-                    T( Idx ) = V( R );
-                end
-                D_.( Vcat( Q ) ) = T;
-            end
+            D_ = table2array( D_ );
+            D_ = obj.decode( D_ );
+            D_ = array2table( D_ );
+            D_.Properties.VariableNames = obj.FacNames;
+            F = D_.Facility;
+            F = correlationFacility( F );
+            D_.Facility = F;
         end
         
         function Cat = get.Cat( obj )
@@ -251,29 +237,58 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
             T = sortrows( T, Vars );
         end % sortDesign
+        
+
+        function Dc = code( obj, D )
+            %--------------------------------------------------------------
+            % Code the level-2 covariate data onto the interval
+            % [ A, B ] --> [ -1, 1 ]. Categorical variables are not
+            % affected by the coding.
+            %
+            % Dc = obj.code( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> Engineering data vector
+            %--------------------------------------------------------------
+            [ G, C ] = obj.codeVars();
+            Dc = G .* D + C;
+        end % code 
+        
+        function D = decode( obj, Dc )
+            %--------------------------------------------------------------
+            % convert coded data to engineering units
+            %
+            % D = obj.decode( Dc );
+            %
+            % Input Arguments:
+            %
+            % Dc    --> Coded data vector
+            %--------------------------------------------------------------
+            [ G, C ] = obj.codeVars();
+            D = ( Dc - C ) ./ G;
+        end % decode
     end % protected methods
     
     methods ( Access = private ) 
-        function V = stdOrder( obj )
+        function [ G, C ] = codeVars( obj )
             %--------------------------------------------------------------
-            % Sort the design by categorical variables first and then in
-            % terms of number of levels of the continuous variables. It is
-            % assumed the lower the number of levels the more difficult the
-            % factor is to set. Refer to this as standard order.
+            % Return gradient and intercept for coding calculations
             %
-            % V = obj.stdOrder();
+            % [ G, C ] = obj.codeVars();
+            %
+            % Output Arguments:
+            %
+            % G     --> Gradient
+            % C     --> Intercept
+            %
+            % Xc = G * X + C
             %--------------------------------------------------------------
-            FacNames = obj.Factor.Properties.RowNames;
-            Cats = FacNames( obj.Cat ).';
-            Lcat = obj.Levels( obj.Cat );
-            [ ~, Idx ] = sort( Lcat );
-            Cats = Cats( Idx );
-            Cons = FacNames( ~obj.Cat ).';
-            Lcon = obj.Levels( ~obj.Cat );
-            [ ~, Idx ] = sort( Lcon );
-            Cons = Cons( Idx );
-            V = horzcat( Cats, Cons );
-        end % stdOrder
+            A = obj.Factor.Min.';
+            B = obj.Factor.Max.';
+            G = 2./( B - A );
+            C = ( B + A ) ./ ( A - B );
+        end % codeVars
     end % private methods
     
     methods ( Static = true )
@@ -331,43 +346,5 @@ classdef ( Abstract = true ) correlationDesign < handle
             Min = ones( size( Type ) );
             Min( Con ) = cellfun( @min, Levels( Con ) );
         end % getMinLevels
-
-        function Dc = code( D, A, B, Ac, Bc )
-            %--------------------------------------------------------------
-            % Code the level-2 covariate data onto an arbitrary scale...
-            % [ A, B ] --> [ Ac, Bc ].
-            %
-            %
-            % Dc = obj.code( D, A, B, Ac, Bc );
-            %
-            % Input Arguments:
-            %
-            % D     --> Engineering data vector
-            % A     --> Lower bound for engineering units
-            % B     --> Upper bound for engineering units
-            % Ac    --> Lower bound for coded units
-            % Bc    --> Upper bound for coded units
-            %--------------------------------------------------------------
-            G = ( Bc - Ac)./( B - A );
-            Dc = G.*( D - A ) + Ac;
-        end % code 
-        
-        function D = decode( Dc, A, B, Ac, Bc )
-            %--------------------------------------------------------------
-            % convert coded data to engineering units
-            %
-            % D = obj.decode( Zc, A, B, Ac, Bc );
-            %
-            % Input Arguments:
-            %
-            % Zc    --> Coded data vector
-            % A     --> Lower bound for engineering units
-            % B     --> Upper bound for engineering units
-            % Ac    --> Lower bound for coded units
-            % Bc    --> Upper bound for coded units
-            %--------------------------------------------------------------
-            G = ( Bc - Ac)./( B - A );
-            D = ( Dc - Ac )./G + A;
-        end % decode
     end % Static methods
 end % correlationDesign

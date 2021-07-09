@@ -9,7 +9,7 @@ classdef rateDesign < correlationDesign
         function obj = design( obj, Replicates, SortOrder )
             %--------------------------------------------------------------
             % Generate the design in natural units. Assumes a full
-            % factorial. Output is for one-replicate
+            % factorial. Output is for all replicates
             %
             % obj = obj.design( Replicates, SortOrder );
             %
@@ -25,30 +25,21 @@ classdef rateDesign < correlationDesign
                 SortOrder = obj.getStandardOrder();
             end
             obj = obj.setReplicates( Replicates );
+            %--------------------------------------------------------------
+            % Generate design
+            %--------------------------------------------------------------
             T = fullfact( obj.Levels );
-            %--------------------------------------------------------------
-            % Convert to engineering units & replicate
-            %--------------------------------------------------------------
             T = obj.mapLevels( T );
+            %--------------------------------------------------------------
+            % Convert to coded units
+            %--------------------------------------------------------------
+            T = obj.code( T );
+            %--------------------------------------------------------------
+            % Replicate
+            %--------------------------------------------------------------
             T = repmat( T, obj.Reps, 1 );
-            T = array2table( T );
-            T.Properties.VariableNames = ...
-                string( obj.Factor.Properties.RowNames ).';
-            %--------------------------------------------------------------
-            % Assign levels for categorical factors
-            %--------------------------------------------------------------
-            VarNames = string( T.Properties.VariableNames );
-            for Q = 1:obj.NumFac
-                if ( obj.Factor{ Q, "Type" } == "CATEGORICAL" )
-                    Vs = T{ :, Q };
-                    Vars = obj.Factor{ Q, "Levels" };
-                    Vars = Vars{ : };
-                    C = categorical( Vs, ( 1:obj.Factor{Q, "NumLevels" } ),...
-                                          Vars );
-                    T.( VarNames( Q ) ) = C;                  
-                end
-            end
-            obj.D = T;
+            obj.D = array2table( T );
+            obj.D.Properties.VariableNames = obj.FacNames;
             %--------------------------------------------------------------
             % Sort the design
             %--------------------------------------------------------------
@@ -112,11 +103,22 @@ classdef rateDesign < correlationDesign
             % first and then continuous. Assumes the lower the number of
             % levels the more difficult the factor is to change.
             %
+            % Note categorical variables are always sorted first to create
+            % blocks
+            %
             % S = obj.getStandardOrder();
             %--------------------------------------------------------------
-            [ ~, Idx ] = sort( obj.Factor.NumLevels );
-            C = ( obj.Factor.Type == "CATEGORICAL" );
-            S = [ Idx( C ); Idx( ~C ) ].';
+            S = zeros( 1, obj.NumFac );                                     % define storage
+            %--------------------------------------------------------------
+            % Generate pointers to 
+            Cat = ( obj.Factor.Type == "CATEGORICAL" );
+            Ord = 1:obj.NumFac;
+            CatVar = Ord( Cat );
+            ConVar = Ord( ~Cat );
+            [ ~, Idx ] = sort( obj.Factor.NumLevels( Cat ) );
+            S( 1:obj.NumCat ) = CatVar( Idx );
+            [ ~, Idx ] = sort( obj.Factor.NumLevels( ~Cat ) );
+            S( ( obj.NumCat + 1 ):end ) = ConVar( Idx );
         end % getStandardOrder
     end % protected methods
 end % correlationDesign
