@@ -46,15 +46,10 @@ classdef rateModel < correlationModel
                                                       mustBeNumeric( X ),...
                                                       mustBeReal( X ) }
             end
-            Quad = obj.quadTerms( X );
+            [ Quad, IxQ ] = obj.quadTerms( X );
             Int = obj.interactionTerms( X );
-            switch obj.Model
-                case "interaction"
-                    Fint = obj.facilityIntTerms( X );
-                otherwise
-                    Fint = double.empty( size( X, 1 ), 0 );
-            end
-            A = [ ones( size( X, 1 ) ), X, Quad, Int, Fint ];
+            Fint = obj.facilityIntTerms( X );
+            A = [ ones( size( X, 1 ) ), X, Int, Quad, IxQ, Fint ];
         end % basis
         
         function obj = fitModel( obj ) 
@@ -112,7 +107,7 @@ classdef rateModel < correlationModel
             end
         end % interactionTerms
         
-        function Q = quadTerms( obj, X )
+        function [ Q, IxQ ] = quadTerms( obj, X )
             %--------------------------------------------------------------
             % Return matrix of quadratic terms if a continuous factor has 3
             % or more levels.
@@ -122,10 +117,17 @@ classdef rateModel < correlationModel
             % Input Arguments:
             %
             % X     --> (double) data in coded units
+            %
+            % Output Arguments:
+            %
+            % Q     --> Pure quadratic terms
+            % IxQ   --> linear times qudratic interactions
             %--------------------------------------------------------------
             Cont = ( obj.Design.Factor.Type == "CONTINUOUS" ).';
-            Cont = Cont & ( obj.Design.Factor.NumLevels.' > 2 );
-            Q = X( :, Cont ).^2;
+            ContQ = Cont & ( obj.Design.Factor.NumLevels.' > 2 );
+            ContL = Cont & ( obj.Design.Factor.NumLevels.' <= 2 );
+            Q = X( :, ContQ ).^2;
+            IxQ = X( :, ContL ).*Q;
         end
     end
 end % rateModel
