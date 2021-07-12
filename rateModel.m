@@ -13,25 +13,37 @@ classdef rateModel < correlationModel
     end % immutable properties  
     
     properties ( SetAccess = protected )
-        MleObj      mle                                                     % MLE analysis object
+        MleObj      	                                                    % MLE analysis object
         Model       supportedModelType                      = "linear"      % Facility model terms
     end % protected properties    
     
     methods
-        function obj = rateModel( DesignObj )
+        function obj = rateModel( DesignObj, MleObj )
             %--------------------------------------------------------------
             % Class constructor
             %
-            % obj = rateModel( DesignObj )
+            % obj = rateModel( DesignObj, MleObj )
             %
             % Input Arguments:
             %
             % DesginObj     --> rateDesign object
+            % MleObj        --> Maximum likelihood estimation object
             %--------------------------------------------------------------
             arguments
-                DesignObj   (1,1)   rateDesign  { mustBeNonempty( DesignObj ) }
+                DesignObj   (1,1)   rateDesign          { mustBeNonempty( DesignObj ) }
+                MleObj      (1,1)   mleAlgorithms       { mustBeNonempty( MleObj ) }    = "em";           
             end
             obj.Design = DesignObj;
+            if ( nargin < 2 ) || ~ismember( A, [ "EM", "IGLS", "MLE" ] )
+                MleObj = "em";
+            end
+            switch mleAlgorithms( MleObj )
+                case "EM"
+                    obj.MleObj = em();
+                case "IGLS"
+                    obj.MleObj = igls();
+                otherwise
+            end
         end % constructor
         
         function obj = setModel( obj, ModelStr )

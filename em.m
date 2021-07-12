@@ -1,7 +1,7 @@
 classdef em < mle
     
     properties ( Constant = true ) 
-        Algorithm       mleAlgorithms            = "em"
+        Algorithm       string            = "em"
     end % Constant & abstract properties
     
 end % em

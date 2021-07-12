@@ -3,7 +3,7 @@ classdef ( Abstract = true ) mle
     % correlation study
     
     properties ( Constant = true, Abstract = true )
-        Algorithm       mleAlgorithms
+        Algorithm       string
     end % Constant & abstract properties
     
     properties ( SetAccess = protected, Dependent = true )

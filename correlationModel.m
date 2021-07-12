@@ -21,7 +21,8 @@ classdef ( Abstract = true ) correlationModel < handle
     end % private properties
     
     properties( SetAccess = protected, Dependent = true )
-        Factor  table                                                       % Factor information 
+        Factor              table                                           % Factor information 
+        Dc                  double                                          % Coded design matrix
     end % dependent properties
     
     properties( Access = private, Dependent = true )
@@ -42,13 +43,12 @@ classdef ( Abstract = true ) correlationModel < handle
             N = obj.Design.NumFac;
        end
         
-        function Dc = codedDesignMatrix( obj )
-            %--------------------------------------------------------------
-            % Generate coded design matrix
-            %
-            % Dc = obj.codedDesignMatrix();
-            %--------------------------------------------------------------
-            Dc = obj.Design.testPlan();
+        function Dc = get.Dc( obj )
+            % Get coded design matrix
+            Dc = obj.Design.Design;
+            Dc.( obj.Facility ) = double( Dc.( obj.Facility ) );
+            Dc = table2array( Dc );
+            Dc = obj.Design.code( Dc );
         end % codedDesignMatrix
         
         function F = get.Factor( obj )
