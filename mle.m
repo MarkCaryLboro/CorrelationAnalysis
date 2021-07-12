@@ -1,10 +1,10 @@
-classdef mle
-    % A class to perfomr the mle analysis for the battery facility 
-    % test correlation study
+classdef ( Abstract = true ) mle
+    % A class to perfomr the mle analysis for the battery facility test
+    % correlation study
     
-    properties ( SetAccess = immutable )
-        Algorithm   string                              = "EM"              % Model Name
-    end % immutable properties
+    properties ( Constant = true, Abstract = true )
+        Algorithm       mleAlgorithms
+    end % Constant & abstract properties
     
     properties ( SetAccess = protected, Dependent = true )
     end % dependent properties
