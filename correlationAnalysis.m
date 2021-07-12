@@ -63,6 +63,7 @@ classdef correlationAnalysis
                 %----------------------------------------------------------
                 if ( obj.DesignObj.Factor{ F, "Type" } == "CATEGORICAL" )
                     obj.Facility = Factors( FacIdx );
+                    obj.ModelObj.Facility = obj.Facility;
                 else
                     warning( 'Facility variable must be "CATEGORICAL"' );
                 end

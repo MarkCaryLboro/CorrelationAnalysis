@@ -1,5 +1,9 @@
 classdef rateModel < correlationModel
     
+    properties
+        Facility    (1,1)             string      = "Facility"              % Facility variable
+    end % public properties
+    
     properties ( Constant = true )
         ModelName   string                  = "Rate"                        % Name of model
     end % Constant & abstract properties    
@@ -30,6 +34,25 @@ classdef rateModel < correlationModel
             obj.Design = DesignObj;
         end % constructor
         
+        function obj = setModel( obj, ModelStr )
+            %--------------------------------------------------------------
+            % Set the facility interaction model type to either "linear" or
+            % "interaction".
+            %
+            % obj = obj.setModel( ModelStr );
+            %
+            % Input Arguments:
+            %
+            % ModelStr  --> (string) Required model, either "linear" or
+            %               "interaction".
+            %--------------------------------------------------------------
+            try
+                obj.Model = ModelStr;
+            catch
+                warning('Property "Model" not changed');
+            end
+        end % setModel
+            
         function A = basis( obj, X ) 
             %--------------------------------------------------------------
             % Generate basis function matrix    
@@ -49,7 +72,7 @@ classdef rateModel < correlationModel
             [ Quad, IxQ ] = obj.quadTerms( X );
             Int = obj.interactionTerms( X );
             Fint = obj.facilityIntTerms( X );
-            A = [ ones( size( X, 1 ) ), X, Int, Quad, IxQ, Fint ];
+            A = [ ones( size( X, 1 ), 1 ), X, Int, Quad, IxQ, Fint ];
         end % basis
         
         function obj = fitModel( obj ) 
@@ -83,6 +106,28 @@ classdef rateModel < correlationModel
     end % get/set methods
     
     methods ( Access = private )
+        function FxL = facilityIntTerms( obj, X )
+            %--------------------------------------------------------------
+            % Return facility times continuous factor interaction terms
+            %
+            % FxL = obj.facilityIntTerms( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> (double) data in coded units
+            %--------------------------------------------------------------
+            FxL = double.empty( size( X, 1 ), 0 );                          % default result
+            if strcmpi( obj.Model, "interaction" )
+                %----------------------------------------------------------
+                % calculate linear facility interaction terms
+                %----------------------------------------------------------
+                Idx = ismember( obj.Design.FacNames, obj.Facility );
+                Fac = X( :, Idx );
+                X = X( :, ~Idx );
+                FxL = X.*Fac;
+            end
+        end % facilityIntTerms
+        
         function I = interactionTerms( obj, X )
             %--------------------------------------------------------------
             % Return continuous interaction terms
@@ -93,7 +138,7 @@ classdef rateModel < correlationModel
             %
             % X     --> (double) data in coded units
             %--------------------------------------------------------------
-            Cont = ( obj.Design.Factor.Type == "CONTINUOUS" ).';
+            Cont = ( obj.Factor.Type == "CONTINUOUS" ).';
             X = X( :, Cont );
             [ N, C ] = size( X );
             Nint = factorial( C )/ factorial( 2 )/factorial( C - 2 );
@@ -123,9 +168,9 @@ classdef rateModel < correlationModel
             % Q     --> Pure quadratic terms
             % IxQ   --> linear times qudratic interactions
             %--------------------------------------------------------------
-            Cont = ( obj.Design.Factor.Type == "CONTINUOUS" ).';
-            ContQ = Cont & ( obj.Design.Factor.NumLevels.' > 2 );
-            ContL = Cont & ( obj.Design.Factor.NumLevels.' <= 2 );
+            Cont = ( obj.Factor.Type == "CONTINUOUS" ).';
+            ContQ = Cont & ( obj.Factor.NumLevels.' > 2 );
+            ContL = Cont & ( obj.Factor.NumLevels.' <= 2 );
             Q = X( :, ContQ ).^2;
             IxQ = X( :, ContL ).*Q;
         end
