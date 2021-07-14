@@ -13,7 +13,7 @@ classdef ( Abstract = true ) correlationDataStore < handle
     end % protected properties
     
     properties ( SetAccess = protected, Dependent = true )
-        Variables           string
+        Variables           string                                          % List of data variables 
     end % Dependent properties
     
     properties ( Access = private )

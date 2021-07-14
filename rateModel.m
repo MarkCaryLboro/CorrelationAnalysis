@@ -84,7 +84,14 @@ classdef rateModel < correlationModel
             [ Quad, IxQ ] = obj.quadTerms( X );
             Int = obj.interactionTerms( X );
             Fint = obj.facilityIntTerms( X );
-            A = [ ones( size( X, 1 ), 1 ), X, Int, Quad, IxQ, Fint ];
+            Z = [ ones( size( X, 1 ), 1 ), X, Int, Quad, IxQ, Fint ];
+            [ R, C ] = size( Z );
+            A = zeros( 2*R, 2*C );
+            for Q = 1:R
+                K = 2*Q - 1;
+                A( K, 1:C ) = Z( Q, : );
+                A( K + 1, C+1:end ) = Z( Q, : );
+            end
         end % basis
         
         function obj = fitModel( obj ) 

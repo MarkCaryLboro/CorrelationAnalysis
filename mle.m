@@ -3,11 +3,15 @@ classdef ( Abstract = true ) mle
     % correlation study
     
     properties ( Constant = true, Abstract = true )
-        Algorithm       string
+        Algorithm       mleAlgorithms
     end % Constant & abstract properties
     
     properties ( SetAccess = protected, Dependent = true )
     end % dependent properties
+    
+    methods ( Abstract = true )
+        L = costFcn( obj, Theta, A, B ) 
+    end % abstract signatures
     
     methods
     end % constructor and ordinary methods

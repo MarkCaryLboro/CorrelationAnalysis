@@ -18,6 +18,7 @@ classdef correlationAnalysis
         NumFacLvl   (1,1)           double                                  % Number of facilities
         FacNames    (1,:)           string                                  % Design Factor Names
         FacSymbols  (1,:)           string                                  % Design Factor Symbols
+        NumTests    (1,1)           double                                  % Number of cells
     end % Dependent properties
     
     methods
@@ -40,6 +41,43 @@ classdef correlationAnalysis
             obj.ModelObj = ModelObj;
             obj.ReportObj = ReportObj;
         end % constructor
+        
+        function B = level1Fits( obj )
+            %--------------------------------------------------------------
+            % Return level-1 fit vector.
+            %
+            % B = obj.level1Fits();
+            %--------------------------------------------------------------
+            D = obj.getData();
+            Sn = unique( D.SerialNumber, 'stable' );
+            N = numel( Sn );
+            B = zeros( 2, obj.NumTests );
+            K = 0;
+            for Q = 1:N
+                %----------------------------------------------------------
+                % Fit the local model for each sweep
+                %----------------------------------------------------------
+                Idx = strcmpi( D.SerialNumber, Sn{ Q } );
+                L = D( Idx, [ obj.FacNames, "Cycle", obj.Response ] );
+                L.( obj.Facility ) = double( correlationFacility( string(...
+                                           L.( obj.Facility ) ) ) );
+                Lcells = unique( L( :, obj.FacNames ), 'rows', 'stable' );
+                NL = height( Lcells );
+                for C = 1:NL
+                    %------------------------------------------------------
+                    % Fit the local model for each sweep
+                    %------------------------------------------------------
+                    K = K + 1;
+                    I = L{ :, obj.FacNames } == Lcells{ C, : };
+                    I = all( I, 2 );
+                    X = L{ I, 'Cycle' };
+                    X = [ ones( size( X, 1 ), 1 ), X ];                        %#ok<AGROW>
+                    Y = L{ I, obj.Response };
+                    B( :, K ) = X\Y;
+                end
+            end
+            B = B.';
+        end % level1Fits       
         
         function obj = setFacilityVariable( obj, F )
             %--------------------------------------------------------------
@@ -213,16 +251,6 @@ classdef correlationAnalysis
                 D.Properties.VariableNames{ Idx } = char( FacName( Q ) );
             end
         end % getData
-        
-        function Ok = matchDesign( obj )
-            %--------------------------------------------------------------
-            % Match the data to the design.... return true (false ) if
-            % matched ( not matched ).
-            %
-            % Ok = obj.matchDesign();
-            %--------------------------------------------------------------
-            
-        end % matchDesign
     end % constructor & ordinary methods
     
     methods
@@ -246,6 +274,14 @@ classdef correlationAnalysis
             % retrieve test type
             T = obj.DesignObj.TestType;
         end
+        
+        function M = get.NumTests( obj )
+            % retrieve the number of cells
+            T = obj.DataObj.DataTable;
+            T = T( :, obj.FacNames );
+            T = unique( T, 'rows' );
+            M = height( T )*obj.DesignObj.Reps;
+        end 
     end % get/set methods
     
     methods ( Access = private )
@@ -279,7 +315,7 @@ classdef correlationAnalysis
             Ax = repmat( axes, R, C );
             Facs = unique( string( D.( obj.Facility ) ) );
             LegStr = true( obj.NumFacLvl, NumPlots );
-            Color = [ "red", "blue", "green", "magenta", "black", "cyan" ].';
+            Color = [ "red", "blue", "green", "magenta", "black" ].';
             for F = 1:numel( Facs )
                 %------------------------------------------------------
                 % Plot the data for the current factor settings by
