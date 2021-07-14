@@ -1,11 +1,11 @@
 classdef rateModel < correlationModel
     
     properties
-        Facility    (1,1)             string      = "Facility"              % Facility variable
+        Facility    (1,1)             string        = "Facility"            % Facility variable
     end % public properties
     
     properties ( Constant = true )
-        ModelName   string                  = "Rate"                        % Name of model
+        ModelName   string                          = "Rate"                % Name of model
     end % Constant & abstract properties    
     
     properties ( SetAccess = immutable )
@@ -15,6 +15,9 @@ classdef rateModel < correlationModel
     properties ( SetAccess = protected )
         MleObj      	                                                    % MLE analysis object
         Model       supportedModelType                      = "linear"      % Facility model terms
+        B   (2,:)   double                                                  % Level-1 fit coefficients
+        S2  (1,1)   double                                                  % Pooled level-1 variance parameter
+        P   (1,:)   double                                                  % Number of points per sweep
     end % protected properties    
     
     methods
@@ -93,12 +96,85 @@ classdef rateModel < correlationModel
                 A( K + 1, C+1:end ) = Z( Q, : );
             end
         end % basis
-        
-        function obj = fitModel( obj ) 
+                
+        function [ B, S2, P ] = level1Fits( obj, D )
+            %--------------------------------------------------------------
+            % Return level-1 fit vector.
+            %
+            % [ B, S2 ] = obj.level1Fits( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> Data table
+            %
+            % Output Arguments:
+            %
+            % B     --> ( 2 x M ) array of level-1 fit coefficients
+            % S2    --> Pooled level-1 variance parameter
+            % P     --> Number of points per sweep
+            %--------------------------------------------------------------
+            Sn = unique( D.SerialNumber, 'stable' );
+            N = numel( Sn );
+            B = zeros( 2, obj.NumTests );
+            K = 0;
+            P = zeros( 1, obj.NumTests );
+            S2 = 0;
+            for Q = 1:N
+                %----------------------------------------------------------
+                % Fit the local model for each sweep
+                %----------------------------------------------------------
+                Idx = strcmpi( D.SerialNumber, Sn{ Q } );
+                L = D( Idx, [ obj.FacNames, "Cycle", obj.Response ] );
+                L.( obj.Facility ) = double( correlationFacility( string(...
+                                           L.( obj.Facility ) ) ) );
+                Lcells = unique( L( :, obj.FacNames ), 'rows', 'stable' );
+                NL = height( Lcells );
+                for C = 1:NL
+                    %------------------------------------------------------
+                    % Fit the local model for each sweep
+                    %------------------------------------------------------
+                    K = K + 1;
+                    I = L{ :, obj.FacNames } == Lcells{ C, : };
+                    I = all( I, 2 );
+                    X = L{ I, 'Cycle' };
+                    X = [ ones( size( X, 1 ), 1 ), X ];                        %#ok<AGROW>
+                    Y = L{ I, obj.Response };
+                    %------------------------------------------------------
+                    % Level-1 regression coefficients
+                    %------------------------------------------------------
+                    B( :, K ) = X\Y;
+                    %------------------------------------------------------
+                    % Calculate SSE for this sweep
+                    %------------------------------------------------------
+                    S2 = S2 + ( Y - X*B( :, K ) ).' * ( Y - X*B( :, K ) );
+                    P( K ) = numel( Y );
+                end
+            end
+            %--------------------------------------------------------------
+            % Pooled level-1 variance
+            %--------------------------------------------------------------
+            S2 = S2 / sum( P );
+        end % level1Fits       
+
+        function obj = fitModel( obj, D ) 
             %--------------------------------------------------------------
             % Perform the required repeated measurments analysis
+            %
+            % obj = obj.fitModel( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> Data table
+            %
             %--------------------------------------------------------------
-            
+            arguments
+                obj     (1,1)   rateModel   { mustBeNonempty( obj ) }
+                D               table       { mustBeNonempty( D ) }
+            end
+            %--------------------------------------------------------------
+            % Perform the level-1 analysis
+            %--------------------------------------------------------------
+            [ obj.B, obj.S2, obj.P ] = obj.level1Fits( D );
         end % fitModel
         
         function obj = defineModel( obj, Model )

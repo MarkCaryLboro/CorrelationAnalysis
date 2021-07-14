@@ -21,6 +21,7 @@ classdef ( Abstract = true ) correlationDataStore < handle
     end
     
     methods ( Abstract = true )
+        Ax = plot( obj )                                                    % Plot the data
     end % abstract methods signature
     
     methods

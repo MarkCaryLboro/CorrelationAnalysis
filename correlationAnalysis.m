@@ -11,6 +11,7 @@ classdef correlationAnalysis
         MatchList                     table                                 % List of matched factor and signal names
         Response    (1,1)             string      = "DischargeCapacity"     % Response variable
         RespUnits   (1,1)             string      = "[Ah]"                  % Response units
+        S2          (1,1)             double                                % Pooled level-1 variance
     end
     
     properties ( SetAccess = protected, Dependent = true )
@@ -42,42 +43,23 @@ classdef correlationAnalysis
             obj.ReportObj = ReportObj;
         end % constructor
         
-        function B = level1Fits( obj )
+        function obj = fitModel( obj )
             %--------------------------------------------------------------
-            % Return level-1 fit vector.
+            % Identify the model parameters from the data
             %
-            % B = obj.level1Fits();
+            % obj = obj.fitModel()
             %--------------------------------------------------------------
-            D = obj.getData();
-            Sn = unique( D.SerialNumber, 'stable' );
-            N = numel( Sn );
-            B = zeros( 2, obj.NumTests );
-            K = 0;
-            for Q = 1:N
-                %----------------------------------------------------------
-                % Fit the local model for each sweep
-                %----------------------------------------------------------
-                Idx = strcmpi( D.SerialNumber, Sn{ Q } );
-                L = D( Idx, [ obj.FacNames, "Cycle", obj.Response ] );
-                L.( obj.Facility ) = double( correlationFacility( string(...
-                                           L.( obj.Facility ) ) ) );
-                Lcells = unique( L( :, obj.FacNames ), 'rows', 'stable' );
-                NL = height( Lcells );
-                for C = 1:NL
-                    %------------------------------------------------------
-                    % Fit the local model for each sweep
-                    %------------------------------------------------------
-                    K = K + 1;
-                    I = L{ :, obj.FacNames } == Lcells{ C, : };
-                    I = all( I, 2 );
-                    X = L{ I, 'Cycle' };
-                    X = [ ones( size( X, 1 ), 1 ), X ];                        %#ok<AGROW>
-                    Y = L{ I, obj.Response };
-                    B( :, K ) = X\Y;
-                end
-            end
-            B = B.';
-        end % level1Fits       
+        end % fitModel
+        
+        function obj = performAnalysis( obj )
+            %--------------------------------------------------------------
+            % Perform the analysis
+            %
+            % obj = obj.performAnalysis();
+            %--------------------------------------------------------------
+            D = obj.DesignObj.getData();                                    % Fetch the data
+            obj.ModelObj = obj.ModelObj.fitModel( D );                      % Identify the model
+        end % performAnalysis
         
         function obj = setFacilityVariable( obj, F )
             %--------------------------------------------------------------

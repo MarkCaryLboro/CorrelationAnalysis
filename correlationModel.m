@@ -1,6 +1,6 @@
 classdef ( Abstract = true ) correlationModel < handle
-    % A container for the repeated measurements identification algorithm
-    % for the battery test facility correlation experiment
+    % A container for the for the battery test facility correlation 
+    % experiment analyses
     
     properties ( SetAccess = immutable, Abstract = true )
         Design                                                              % Design object
@@ -29,9 +29,9 @@ classdef ( Abstract = true ) correlationModel < handle
     end % Private and dependent properties
     
     methods ( Abstract = true )
-        A = basis( obj, D )                                                 % Generate basis function matrix                                                        
+        A = basis( obj, X )                                                 % Generate basis function matrix                                                        
         obj = fitModel( obj, D )                                            % Perform the required analysis
-        obj = defineModel( obj )                                            % Define model
+        obj = defineModel( obj, Type )                                      % Define model
     end % abstract method signatures
     
     methods
