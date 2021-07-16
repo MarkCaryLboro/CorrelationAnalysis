@@ -119,14 +119,22 @@ classdef ( Abstract = true ) correlationDesign < handle
             end
         end % addFactor
         
-        function X = export2ws( obj )
+        function [ T, Xc ] = export2ws( obj )
             %--------------------------------------------------------------
-            % Export the design to the workspace in coded form. Output is a
-            % table.
+            % Export the design to the workspace in coded form. Output is 
+            % either a table or an array.
             %
-            % X = obj.export2ws();
+            % [ T, Xc ] = obj.export2ws();
+            %
+            % Output Arguments:
+            %
+            % T     --> Design (table)
+            % Xc    --> Design matrix (double)
             %--------------------------------------------------------------
-            X = obj.D;   
+            T = obj.D;  
+            if ( nargout == 2 )
+                Xc = table2array( T );
+            end
         end % export2ws
         
         function T = testPlan( obj, FileName )

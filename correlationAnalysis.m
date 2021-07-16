@@ -43,6 +43,35 @@ classdef correlationAnalysis
             obj.ReportObj = ReportObj;
         end % constructor
         
+        function Ai = getAi( obj )
+            %--------------------------------------------------------------
+            % Return the (1xM) cell array of level-2 regression matrices
+            %
+            % Ai = obj.getAi();
+            %--------------------------------------------------------------
+            D = obj.getData();
+            %--------------------------------------------------------------
+            % Extract the factors
+            %--------------------------------------------------------------
+            D = D( :, obj.FacNames );
+            D.( obj.Facility ) = correlationFacility( D.( obj.Facility ) );
+            D.( obj.Facility ) = double( D.( obj.Facility ) );
+            Xc = obj.DesignObj.code( table2array( D ) );
+            %--------------------------------------------------------------
+            % Remove all repeated data, including replicates
+            %--------------------------------------------------------------
+            Xc = unique( Xc, 'rows', 'stable' );
+            X = repmat( Xc, obj.DesignObj.Reps, 1 );
+            Finish = 0;
+            for Q = 1:size( Xc, 1 )
+                Start = Finish + 1;
+                Finish = 3*Q;
+                X( Start:Finish, : ) = repmat( Xc( Q, : ),... 
+                                               obj.DesignObj.Reps, 1 );
+            end
+            Ai = obj.ModelObj.basis( X );
+        end % getAi
+        
         function obj = fitModel( obj )
             %--------------------------------------------------------------
             % Identify the model parameters from the data

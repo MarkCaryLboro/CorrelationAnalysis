@@ -84,15 +84,13 @@ classdef rateDesign < correlationDesign
             %
             % T     --> (double) Test plan matrix
             %--------------------------------------------------------------
-            K = 0;
             for Q = 1:obj.NumFac
                 if ( obj.Factor.Type( Q ) == "CONTINUOUS" )
-                    K = K + 1;
                     Lev = obj.Factor{ Q, "Levels" };
                     if iscell( Lev )
                         Lev = Lev{ : };
                     end
-                    T( :, K ) = Lev( T( :, K ) ).';
+                    T( :, Q ) = Lev( T( :, Q ) ).';
                 end
             end
         end % mapLevels

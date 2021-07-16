@@ -17,7 +17,7 @@ classdef rateModel < correlationModel
         Model       supportedModelType                      = "linear"      % Facility model terms
         B   (2,:)   double                                                  % Level-1 fit coefficients
         S2  (1,1)   double                                                  % Pooled level-1 variance parameter
-        P   (1,:)   double                                                  % Number of points per sweep
+        F   (1,:)   cell                                                    % Level-1 information matrix
     end % protected properties    
     
     methods
@@ -76,7 +76,12 @@ classdef rateModel < correlationModel
             %
             % Input Arguments:
             %
-            % X     --> (double) data table in coded units
+            % X     --> (double) data array in coded units
+            %
+            % Output Arguments:
+            %
+            % A     --> (cell) (1xM) array of basis function matrices for
+            %           the ith training condition
             %--------------------------------------------------------------
             arguments
                 obj     (1,1)       rateModel
@@ -88,20 +93,18 @@ classdef rateModel < correlationModel
             Int = obj.interactionTerms( X );
             Fint = obj.facilityIntTerms( X );
             Z = [ ones( size( X, 1 ), 1 ), X, Int, Quad, IxQ, Fint ];
-            [ R, C ] = size( Z );
-            A = zeros( 2*R, 2*C );
+            R = size( Z, 1 );
+            A = cell( 1, R );
             for Q = 1:R
-                K = 2*Q - 1;
-                A( K, 1:C ) = Z( Q, : );
-                A( K + 1, C+1:end ) = Z( Q, : );
+                A{ Q } = blkdiag( Z( Q, : ), Z( Q, :) );
             end
         end % basis
                 
-        function [ B, S2, P ] = level1Fits( obj, D )
+        function [ B, S2, F ] = level1Fits( obj, D )
             %--------------------------------------------------------------
             % Return level-1 fit vector.
             %
-            % [ B, S2 ] = obj.level1Fits( D );
+            % [ B, S2, F ] = obj.level1Fits( D );
             %
             % Input Arguments:
             %
@@ -111,13 +114,15 @@ classdef rateModel < correlationModel
             %
             % B     --> ( 2 x M ) array of level-1 fit coefficients
             % S2    --> Pooled level-1 variance parameter
-            % P     --> Number of points per sweep
+            % F     --> ( 1 x M ) cell array of level-1 information 
+            %           matrices 
             %--------------------------------------------------------------
             Sn = unique( D.SerialNumber, 'stable' );
             N = numel( Sn );
             B = zeros( 2, obj.NumTests );
             K = 0;
             P = zeros( 1, obj.NumTests );
+            F = zeros( 1, obj.NumTests );
             S2 = 0;
             for Q = 1:N
                 %----------------------------------------------------------
@@ -148,12 +153,14 @@ classdef rateModel < correlationModel
                     %------------------------------------------------------
                     S2 = S2 + ( Y - X*B( :, K ) ).' * ( Y - X*B( :, K ) );
                     P( K ) = numel( Y );
+                    F( K ) = X.'*X;
                 end
             end
             %--------------------------------------------------------------
             % Pooled level-1 variance
             %--------------------------------------------------------------
             S2 = S2 / sum( P );
+            F = cellfun( @( X )times( X, 1/S2 ), F );
         end % level1Fits       
 
         function obj = fitModel( obj, D ) 
