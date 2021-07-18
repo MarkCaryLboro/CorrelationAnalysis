@@ -15,7 +15,7 @@ classdef correlationAnalysis
     end
     
     properties ( SetAccess = protected, Dependent = true )
-        TestType    (1,1)           string                                  % Test type
+        TestType    (1,1)           string                                  % Analysis type
         NumFacLvl   (1,1)           double                                  % Number of facilities
         FacNames    (1,:)           string                                  % Design Factor Names
         FacSymbols  (1,:)           string                                  % Design Factor Symbols
@@ -78,6 +78,9 @@ classdef correlationAnalysis
             %
             % obj = obj.fitModel()
             %--------------------------------------------------------------
+            D = obj.getData( true );     
+            S = obj.genModelOpts();
+            obj.ModelObj = obj.ModelObj.fitModel( D, S );
         end % fitModel
         
         function obj = performAnalysis( obj )
@@ -243,16 +246,24 @@ classdef correlationAnalysis
             end
         end % setResponse
         
-        function D = getData( obj )
+        function D = getData( obj, Convert2Double )
             %--------------------------------------------------------------
             % Fetch the data table and correct column names to match the
             % design object
             %
-            % D = obj.getData();
+            % D = obj.getData( Convert2Double );
+            %
+            % Input Arguments:
+            %
+            % Convert2Double    --> (logical) set to true to convert
+            %                       facility variable to double
             %--------------------------------------------------------------
+            if ( nargin < 2 ) || ~islogical( Convert2Double )
+                Convert2Double = false;
+            end
             D = obj.DataObj.DataTable;
             %--------------------------------------------------------------
-            % Now substitue the data channel faactor names
+            % Now substitute the data channel faactor names
             %--------------------------------------------------------------
             FacName = string( obj.MatchList.Properties.RowNames );
             N = obj.DesignObj.NumFac;
@@ -260,6 +271,10 @@ classdef correlationAnalysis
                 Signal = obj.MatchList.DataChannels( Q );
                 Idx = strcmpi( D.Properties.VariableNames, Signal );
                 D.Properties.VariableNames{ Idx } = char( FacName( Q ) );
+            end
+            if Convert2Double
+                D.( obj.Facility ) = double( correlationFacility(... 
+                                     string( D.( obj.Facility ) ) ) );
             end
         end % getData
     end % constructor & ordinary methods
@@ -283,7 +298,7 @@ classdef correlationAnalysis
         
         function T = get.TestType( obj )
             % retrieve test type
-            T = obj.DesignObj.TestType;
+            T = lower( string( obj.DesignObj.TestType ) );
         end
         
         function M = get.NumTests( obj )
@@ -381,6 +396,33 @@ classdef correlationAnalysis
                 warning on;
             end
         end % plotRateData
+        
+        function S = genModelOpts( obj )
+            %--------------------------------------------------------------
+            % Generate the interface structure for the current analysis
+            %
+            % S = obj.genModelOpts();
+            %--------------------------------------------------------------
+            switch obj.TestType
+                case "rate"
+                    S = genRateOpts( obj );
+                case "pulse"
+                case "capacity"
+                otherwise
+                    error('Test type "%s" not recognised', obj.TestType );
+            end
+        end % genModelOpts
+        
+        function S = genRateOpts( obj )
+            %--------------------------------------------------------------
+            % Generate analysis argument structure for rate test
+            %
+            % S = obj.genRateOpts();
+            %--------------------------------------------------------------
+            S.NumTests = double( obj.NumTests );
+            S.Xname = "Cycle";
+            S.Yname = obj.Response;
+        end % genRateOpts
     end % private methods
 end % correlationAnalysis
 

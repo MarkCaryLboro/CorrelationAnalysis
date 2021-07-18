@@ -34,10 +34,10 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             arguments
                 DesignObj   (1,1)   rateDesign          { mustBeNonempty( DesignObj ) }
-                MleObj      (1,1)   mleAlgorithms       { mustBeNonempty( MleObj ) }    = "em";           
+                MleObj      (1,1)   mleAlgorithms       { mustBeNonempty( MleObj ) }    = "EM";           
             end
             obj.Design = DesignObj;
-            if ( nargin < 2 ) || ~ismember( A, [ "EM", "IGLS", "MLE" ] )
+            if ( nargin < 2 ) || ~ismember( upper( MleObj ), [ "EM", "IGLS", "MLE" ] )
                 MleObj = "em";
             end
             switch mleAlgorithms( MleObj )
@@ -100,15 +100,18 @@ classdef rateModel < correlationModel
             end
         end % basis
                 
-        function [ B, S2, F ] = level1Fits( obj, D )
+        function [ B, S2, F ] = level1Fits( obj, D, NumTests, Xname, Yname )
             %--------------------------------------------------------------
             % Return level-1 fit vector.
             %
-            % [ B, S2, F ] = obj.level1Fits( D );
+            % [ B, S2, F ] = obj.level1Fits( D, NumTests, Xname, Yname );
             %
             % Input Arguments:
             %
-            % D     --> Data table
+            % D         --> Data table
+            % NumTests  --> Number of tests
+            % Xname     --> (string) Name of independent variable
+            % Yname     --> (string) Name of response variable
             %
             % Output Arguments:
             %
@@ -117,33 +120,39 @@ classdef rateModel < correlationModel
             % F     --> ( 1 x M ) cell array of level-1 information 
             %           matrices 
             %--------------------------------------------------------------
+            arguments
+                obj         (1,1)   rateModel       { mustBeNonempty( obj ) }
+                D                   table           { mustBeNonempty( D ) }
+                NumTests    (1,1)   double          { mustBeNonempty( NumTests ) }
+                Xname       (1,1)   string          = "Cycle";
+                Yname       (1,1)   string          = "DischargeCapacity"
+            end
             Sn = unique( D.SerialNumber, 'stable' );
             N = numel( Sn );
-            B = zeros( 2, obj.NumTests );
+            B = zeros( 2, NumTests );
             K = 0;
-            P = zeros( 1, obj.NumTests );
-            F = zeros( 1, obj.NumTests );
+            P = zeros( 1, NumTests );
+            F = cell( 1, NumTests );
             S2 = 0;
             for Q = 1:N
                 %----------------------------------------------------------
                 % Fit the local model for each sweep
                 %----------------------------------------------------------
                 Idx = strcmpi( D.SerialNumber, Sn{ Q } );
-                L = D( Idx, [ obj.FacNames, "Cycle", obj.Response ] );
-                L.( obj.Facility ) = double( correlationFacility( string(...
-                                           L.( obj.Facility ) ) ) );
-                Lcells = unique( L( :, obj.FacNames ), 'rows', 'stable' );
+                L = D( Idx, [ obj.Design.FacNames, "Cycle", Yname ] );
+                Lcells = unique( L( :, obj.Design.FacNames ), 'rows',...
+                                       'stable' );
                 NL = height( Lcells );
                 for C = 1:NL
                     %------------------------------------------------------
                     % Fit the local model for each sweep
                     %------------------------------------------------------
                     K = K + 1;
-                    I = L{ :, obj.FacNames } == Lcells{ C, : };
+                    I = L{ :, obj.Design.FacNames } == Lcells{ C, : };
                     I = all( I, 2 );
                     X = L{ I, 'Cycle' };
                     X = [ ones( size( X, 1 ), 1 ), X ];                        %#ok<AGROW>
-                    Y = L{ I, obj.Response };
+                    Y = L{ I, Yname };
                     %------------------------------------------------------
                     % Level-1 regression coefficients
                     %------------------------------------------------------
@@ -153,35 +162,41 @@ classdef rateModel < correlationModel
                     %------------------------------------------------------
                     S2 = S2 + ( Y - X*B( :, K ) ).' * ( Y - X*B( :, K ) );
                     P( K ) = numel( Y );
-                    F( K ) = X.'*X;
+                    F{ K } = X.'*X;
                 end
             end
             %--------------------------------------------------------------
             % Pooled level-1 variance
             %--------------------------------------------------------------
             S2 = S2 / sum( P );
-            F = cellfun( @( X )times( X, 1/S2 ), F );
+            F = cellfun( @( X )times( X, 1/S2 ), F, 'UniformOutput', false );
         end % level1Fits       
 
-        function obj = fitModel( obj, D ) 
+        function obj = fitModel( obj, D, S ) 
             %--------------------------------------------------------------
             % Perform the required repeated measurments analysis
             %
-            % obj = obj.fitModel( D );
+            % obj = obj.fitModel( D, NumTests, S );
             %
             % Input Arguments:
             %
-            % D     --> Data table
+            % D         --> (table) Data table
+            % S         --> (struct) Analysis information with fields:
             %
+            %           NumTests --> (double) Number of tests
+            %           Xname    --> (string) Level-1 dependent variable
+            %           Yname    --> (string) Response variable
             %--------------------------------------------------------------
             arguments
-                obj     (1,1)   rateModel   { mustBeNonempty( obj ) }
-                D               table       { mustBeNonempty( D ) }
+                obj         (1,1)   rateModel   { mustBeNonempty( obj ) }
+                D                   table       { mustBeNonempty( D ) }
+                S           (1,1)   struct      { mustBeNonempty( S ) }
             end
             %--------------------------------------------------------------
             % Perform the level-1 analysis
             %--------------------------------------------------------------
-            [ obj.B, obj.S2, obj.P ] = obj.level1Fits( D );
+            [ obj.B, obj.S2, obj.F ] = obj.level1Fits( D, S.NumTests,...
+                                           S.Xname, S.Yname );
         end % fitModel
         
         function obj = defineModel( obj, Model )
