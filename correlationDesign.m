@@ -46,50 +46,53 @@ classdef ( Abstract = true ) correlationDesign < handle
             obj.Reps = int8( N );
         end % setReplicates
         
-        function obj = addFactor( obj, Name, Symbol, Units, Levels, Type )
+        function obj = addCatFactor( obj, Name, Symbol, Levels, ValueSet, CatNames )
             %--------------------------------------------------------------
-            % Add a factor to the Factor definition table
+            % Add a continuous factor to the Factor definition table
             %
-            % obj = obj.addFactor( Name, Symbol, Units, Levels, Type );
+            % obj = obj.addConFactor( Name, Symbol, Units, Levels,...
+            %                         ValueSet, CatNames );
             %
             % Input Arguments:
             %
             % Name      --> (string) (px1) Array of factor names
             % Symbol    --> (string) (px1) Array of factor symbols
-            % Units     --> (string) (px1) Array of factor units
             % Levels    --> (cell) (px1) Cell array of factor levels
-            % Type      --> (string) Either {"continuous"} or "categorical"
+            % ValueSet  --> (cell) (px1) ordinal categories (numeric)
+            % CatNames  --> (cell) (px1) category names (string)
             %--------------------------------------------------------------
             arguments
                 obj
                 Name(:,1)       string                  { mustBeNonempty( Name ) }
                 Symbol(:,1)     string                  { mustBeNonempty( Symbol ) }
-                Units(:,1)      string
                 Levels          cell                    { mustBeNonempty( Levels ) }
-                Type(:,1)       correlationVariableType 
+                ValueSet        cell                    { mustBeNonempty( ValueSet ) }
+                CatNames        cell                    { mustBeNonempty( CatNames ) }
             end
             P = numel( Name );
-            %--------------------------------------------------------------
-            % Parse inputs
-            %--------------------------------------------------------------
-            if ( nargin < 6 ) || ~isa( Type, "correlationVariableType" )
-                Type = repmat( correlationVariableType( "continuous" ), P, 1 );                        % Apply default
+            Type = correlationVariableType( "Cat" );
+            Type = repmat( Type, P, 1 );
+            Units = "N/A";
+            Units = repmat( Units, P, 1 );
+            Cats = cell( P, 1 );
+            for Q = 1:P
+                %----------------------------------------------------------
+                % Create the categorical variables
+                %----------------------------------------------------------
+                Cats{ P } = categorical( Levels{ P }, ValueSet{ P }, ...
+                                         CatNames{ P }, 'Ordinal', true );
             end
-            if isempty( Units )
-                Units = repmat( "N/A", P, 1 );
-            end
             %--------------------------------------------------------------
-            % Calculate Min & Max levels. If a categorical variable then
-            % assign an integer coding from 1:N, where N is the number of
-            % levels assigned to the factor.
+            % Calculate Min & Max levels. 
             %--------------------------------------------------------------
-            Max = obj.getMaxLevels( Levels, Type);
-            Min = obj.getMinLevels( Levels, Type);
-            NumLevels = obj.getNumLevels( Levels );
+            Max = cellfun( @max, ValueSet );
+            Min = cellfun( @min, ValueSet );
+            NumLevels = cellfun( @numel, Cats );
             %--------------------------------------------------------------
             % Generate a table of factor data
             %--------------------------------------------------------------
-            T = table( Symbol, Units, Min, Max, Levels, NumLevels,Type );
+            Levels = Cats;
+            T = table( Symbol, Units, Min, Max, Levels, NumLevels, Type);
             T.Properties.RowNames = Name;
             if isempty( obj.Factor )
                 %----------------------------------------------------------
@@ -117,7 +120,75 @@ classdef ( Abstract = true ) correlationDesign < handle
                     obj.Factor( Idx, : ) = T( Name( Q ), : );
                 end
             end
-        end % addFactor
+        end % addCatFactor
+        
+        function obj = addConFactor( obj, Name, Symbol, Units, Levels )
+            %--------------------------------------------------------------
+            % Add a continuous factor to the Factor definition table
+            %
+            % obj = obj.addConFactor( Name, Symbol, Units, Levels, Type );
+            %
+            % Input Arguments:
+            %
+            % Name      --> (string) (px1) Array of factor names
+            % Symbol    --> (string) (px1) Array of factor symbols
+            % Units     --> (string) (px1) Array of factor units
+            % Levels    --> (cell) (px1) Cell array of factor levels
+            %--------------------------------------------------------------
+            arguments
+                obj
+                Name(:,1)       string                  { mustBeNonempty( Name ) }
+                Symbol(:,1)     string                  { mustBeNonempty( Symbol ) }
+                Units(:,1)      string
+                Levels          cell                    { mustBeNonempty( Levels ) }
+            end
+            P = numel( Name );
+            Type = correlationVariableType( "Cont" );
+            Type = repmat( Type, P, 1 );
+            %--------------------------------------------------------------
+            % Parse inputs
+            %--------------------------------------------------------------
+            if isempty( Units )
+                Units = repmat( "N/A", P, 1 );
+            end
+            %--------------------------------------------------------------
+            % Calculate Min & Max levels. 
+            %--------------------------------------------------------------
+            Max = cellfun( @max, Levels );
+            Min = cellfun( @min, Levels );
+            NumLevels = cellfun( @numel, Levels );
+            %--------------------------------------------------------------
+            % Generate a table of factor data
+            %--------------------------------------------------------------
+            T = table( Symbol, Units, Min, Max, Levels, NumLevels, Type );
+            T.Properties.RowNames = Name;
+            if isempty( obj.Factor )
+                %----------------------------------------------------------
+                % Assign the Factor table variable names if not defined
+                %----------------------------------------------------------
+                obj.Factor.Properties.VariableNames =...
+                    T.Properties.VariableNames;
+            end
+            %--------------------------------------------------------------
+            % Are the rows unique? If not then overwrite the original
+            % rows in the factor definition table
+            %--------------------------------------------------------------
+            FacExist = string( obj.Factor.Properties.RowNames );
+            for Q = 1:numel( Name )
+                Idx = strcmpi( Name( Q ), FacExist );
+                if isempty( Idx ) || all( ~Idx )
+                    %------------------------------------------------------
+                    % Assign new row
+                    %------------------------------------------------------
+                    obj.Factor = vertcat( obj.Factor, T( Name( Q ), : ) );
+                else
+                    %------------------------------------------------------
+                    % Overwrite existing row
+                    %------------------------------------------------------
+                    obj.Factor( Idx, : ) = T( Name( Q ), : );
+                end
+            end
+        end % addConFactor
         
         function [ T, Xc ] = export2ws( obj )
             %--------------------------------------------------------------
@@ -310,59 +381,5 @@ classdef ( Abstract = true ) correlationDesign < handle
     end % private methods
     
     methods ( Static = true, Access = protected )
-        function N = getNumLevels( Levels )
-            %--------------------------------------------------------------
-            % Return number of levels of the factors
-            %
-            % N = obj.getNumLevels( Levels );
-            %
-            % Input Arguments:
-            %
-            % Levels    --> (cell) Factor levels
-            %--------------------------------------------------------------
-            N = cellfun( @numel, Levels );
-        end % getNumLevels
-        
-        function Max = getMaxLevels( Levels, Type)
-            %--------------------------------------------------------------
-            % Return Max levels for all factors... If categorical variables
-            % are present then assign an integer code to them.
-            %
-            % Max = obj.getMaxLevels( Levels, Type);
-            %
-            % Input Arguments:
-            %
-            % Levels    --> (cell) Factor levels
-            % Type      --> (string) Either {"continuous"} or "categorical"
-            %--------------------------------------------------------------
-            Cat = ( Type == "CATEGORICAL" ); 
-            Con = ( Type == "CONTINUOUS" );
-            Max = zeros( size( Type ) );
-            Max( Con ) = cellfun( @max, Levels( Con ) );
-            %--------------------------------------------------------------
-            % Ensure Categorical variables are a cell array of strings
-            %--------------------------------------------------------------
-            for Q = 1:sum( Cat )
-                Levels{ Q } = string( Levels{ Q } );
-            end
-            Max( Cat ) = cellfun( @numel, Levels( Cat ) );
-        end % getMaxLevels
-                
-        function Min = getMinLevels( Levels, Type)
-            %--------------------------------------------------------------
-            % Return Min levels for all factors... If categorical variables
-            % are present then assign an integer code to them.
-            %
-            % Max = obj.getMaxLevels( Levels, Type);
-            %
-            % Input Arguments:
-            %
-            % Levels    --> (cell) Factor levels
-            % Type      --> (string) Either {"continuous"} or "categorical"
-            %--------------------------------------------------------------
-            Con = ( Type == "CONTINUOUS" );
-            Min = ones( size( Type ) );
-            Min( Con ) = cellfun( @min, Levels( Con ) );
-        end % getMinLevels
     end % Static methods
 end % correlationDesign

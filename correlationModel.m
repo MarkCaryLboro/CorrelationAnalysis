@@ -23,6 +23,7 @@ classdef ( Abstract = true ) correlationModel < handle
     properties( SetAccess = protected, Dependent = true )
         Factor              table                                           % Factor information 
         Dc                  double                                          % Coded design matrix
+        FacNames            string                                          % DoE factor names
     end % dependent properties
     
     properties( Access = private, Dependent = true )
@@ -32,6 +33,7 @@ classdef ( Abstract = true ) correlationModel < handle
         A = basis( obj, X )                                                 % Generate basis function matrix                                                        
         obj = fitModel( obj, D )                                            % Perform the required analysis
         obj = defineModel( obj, Type )                                      % Define model
+        Z = predictions( obj, A, Cycle )                                    % Predictions
     end % abstract method signatures
     
     methods
@@ -55,6 +57,11 @@ classdef ( Abstract = true ) correlationModel < handle
             % Return factor definition table
             F = obj.Design.Factor;
         end
+        
+        function F = get.FacNames( obj )
+            % Return the factor names as a string
+            F = obj.Design.FacNames;
+        end 
     end % get set methods
     
     methods ( Access = protected )      

@@ -13,11 +13,13 @@ classdef rateModel < correlationModel
     end % immutable properties  
     
     properties ( SetAccess = protected )
+        Theta   (:,1)   double                                              % Level-2 regression coefficients
+        Omega   (1,3)   double                                              % Level-2 covariance model coefficients
         MleObj      	                                                    % MLE analysis object
-        Model       supportedModelType                      = "linear"      % Facility model terms
-        B   (2,:)   double                                                  % Level-1 fit coefficients
-        S2  (1,1)   double                                                  % Pooled level-1 variance parameter
-        F   (1,:)   cell                                                    % Level-1 information matrix
+        Model           supportedModelType                      = "linear"  % Facility model terms
+        B       (2,:)   double                                              % Level-1 fit coefficients
+        S2      (1,1)   double                                              % Pooled level-1 variance parameter
+        F       (1,:)   cell                                                % Level-1 information matrix
     end % protected properties    
     
     methods
@@ -48,6 +50,19 @@ classdef rateModel < correlationModel
                 otherwise
             end
         end % constructor
+        
+        function Z = predictions( obj, A, X )                                    
+            %--------------------------------------------------------------
+            % Calculate predictions
+            %
+            % Z = obj.predictions( A, X )
+            %
+            % Input Arguments:
+            %
+            % A     --> Ageing conditions ( level-2 covariate matrix)
+            % X     --> Cycle number to predict ( level-1 covariate );
+            %--------------------------------------------------------------
+        end % predictions
         
         function obj = setModel( obj, ModelStr )
             %--------------------------------------------------------------
@@ -89,11 +104,20 @@ classdef rateModel < correlationModel
                                                       mustBeNumeric( X ),...
                                                       mustBeReal( X ) }
             end
-            [ Quad, IxQ ] = obj.quadTerms( X );
-            Int = obj.interactionTerms( X );
-            Fint = obj.facilityIntTerms( X );
-            Z = [ ones( size( X, 1 ), 1 ), X, Int, Quad, IxQ, Fint ];
-            R = size( Z, 1 );
+            R = size( X, 1 );
+            Z = ones( R, 1 );
+            switch obj.Model
+                case "linear"
+                    Z = X;
+                case "interaction"
+                    Z = [ X obj.interactionTerms( X ) ];
+                case "quadratic"
+                    Z = [ X obj.interactionTerms( X ) obj.quadTerms( X ) ];
+                case "complete"
+                    [ Q, IxQ ] = obj.quadTerms( X );
+                    Z = [ X obj.interactionTerms( X ), Q, IxQ  ];
+            end
+            Z = [ ones( size( X, 1 ), 1 ), Z ];
             A = cell( 1, R );
             for Q = 1:R
                 A{ Q } = blkdiag( Z( Q, : ), Z( Q, :) );
@@ -171,7 +195,7 @@ classdef rateModel < correlationModel
             S2 = S2 / sum( P );
             F = cellfun( @( X )times( X, 1/S2 ), F, 'UniformOutput', false );
         end % level1Fits       
-
+        
         function obj = fitModel( obj, D, S ) 
             %--------------------------------------------------------------
             % Perform the required repeated measurments analysis
@@ -197,6 +221,13 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             [ obj.B, obj.S2, obj.F ] = obj.level1Fits( D, S.NumTests,...
                                            S.Xname, S.Yname );
+            %--------------------------------------------------------------
+            % Generate the level-2 covariate matrices
+            %--------------------------------------------------------------
+            A = D( :, obj.FacNames );
+            A = table2array( A );
+            A = unique( A, 'stable', 'rows' );
+            A = obj.Design.code( A );
         end % fitModel
         
         function obj = defineModel( obj, Model )

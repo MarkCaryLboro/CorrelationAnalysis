@@ -9,6 +9,7 @@ classdef correlationAnalysis
         ReportObj   (1,1)             correlationReport                     % Report generator
         Facility    (1,1)             string      = "Facility"              % Facility variable
         MatchList                     table                                 % List of matched factor and signal names
+        MatchedData 	              table                                 % Matched data to design
         Response    (1,1)             string      = "DischargeCapacity"     % Response variable
         RespUnits   (1,1)             string      = "[Ah]"                  % Response units
         S2          (1,1)             double                                % Pooled level-1 variance
@@ -41,6 +42,7 @@ classdef correlationAnalysis
             obj.DesignObj = DesignObj;
             obj.ModelObj = ModelObj;
             obj.ReportObj = ReportObj;
+            obj = obj.mapDataChannels();
         end % constructor
         
         function Ai = getAi( obj )
@@ -49,13 +51,11 @@ classdef correlationAnalysis
             %
             % Ai = obj.getAi();
             %--------------------------------------------------------------
-            D = obj.getData();
+            D = obj.getData( true );
             %--------------------------------------------------------------
             % Extract the factors
             %--------------------------------------------------------------
             D = D( :, obj.FacNames );
-            D.( obj.Facility ) = correlationFacility( D.( obj.Facility ) );
-            D.( obj.Facility ) = double( D.( obj.Facility ) );
             Xc = obj.DesignObj.code( table2array( D ) );
             %--------------------------------------------------------------
             % Remove all repeated data, including replicates
@@ -124,6 +124,55 @@ classdef correlationAnalysis
             end
         end % setFacilityVariable
         
+        function obj = matchData2Design( obj )
+            %--------------------------------------------------------------
+            % Match the data to the design and return the list of
+            % replicates
+            %
+            % obj = obj.matchData2Design();
+            %--------------------------------------------------------------
+            D = obj.getData( true );
+            %--------------------------------------------------------------
+            % Generate the data groups
+            %--------------------------------------------------------------
+            U = table2array( D( :, obj.FacNames  ) );
+            %--------------------------------------------------------------
+            % Generate the design groups
+            %--------------------------------------------------------------
+            [ ~, Tdes ] = findgroups( obj.DesignObj.Design );
+            Tdes.( obj.Facility ) = double( Tdes.( obj.Facility ) );
+            Tdes = unique( Tdes, 'stable' );
+            N = height( Tdes );
+            Replicates = cell( height( Tdes ), 1 );
+            %--------------------------------------------------------------
+            % Match the design to the data
+            %--------------------------------------------------------------
+            for Q = 1:N
+                C = Tdes{ Q, : };
+                Tol = eps( C );
+                Idx = ( abs( U - C ) <= Tol );
+                Idx = all( Idx, 2 );
+                Sn = unique( string( D.SerialNumber( Idx ) ) ).';
+                if isempty( Sn )
+                    %------------------------------------------------------
+                    % No replicates present
+                    %------------------------------------------------------
+                    Sn = NaN( 1, obj.DesignObj.Reps );
+                elseif ( numel( Sn ) < obj.DesignObj.Reps )
+                    %------------------------------------------------------
+                    % Some replicates present
+                    %------------------------------------------------------
+                    Sn = [ Sn, NaN( 1,...
+                                obj.DesignObj.Reps - numel( Sn ) ) ];       %#ok<AGROW>
+                end
+                Replicates{ Q } = Sn;
+            end
+            Replicates = cell2table( Replicates );
+            obj.MatchedData = horzcat( Tdes, Replicates );
+            obj.MatchedData.Facility = correlationFacility( ...
+                                            obj.MatchedData.Facility );
+        end % matchData2Design
+       
         function obj = mapDataChannels( obj, DataChannels )
             %--------------------------------------------------------------
             % map the design factor names to the corresponding data signals
@@ -187,7 +236,7 @@ classdef correlationAnalysis
             %
             % Ax    --> Handles to plot axes.
             %--------------------------------------------------------------
-            D = obj.getData();
+            D = obj.getData( true );
             %--------------------------------------------------------------
             % Generate the required plot
             %--------------------------------------------------------------
@@ -197,6 +246,10 @@ classdef correlationAnalysis
                 case "pulse"
                 case "capacity"
             end
+            %--------------------------------------------------------------
+            % Ensure data axes have common limits
+            %--------------------------------------------------------------
+            obj.commonAxesLimits( Ax );
         end % plot
         
         function obj = setRespUnits( obj, Units )
@@ -310,7 +363,7 @@ classdef correlationAnalysis
         end 
     end % get/set methods
     
-    methods ( Access = private )
+    methods ( Access = private )        
         function Ax = plotRateData( obj, D )
             %--------------------------------------------------------------
             % Plot the raw rate data sweeps for all institutions
@@ -326,9 +379,11 @@ classdef correlationAnalysis
             % Determine number of plots & Develop matric of continuous 
             % factor levels.
             %--------------------------------------------------------------
-            ContLvls = obj.DesignObj.Levels( ~Cat );
-            Lvls = fullfact( ContLvls );
+            Lvls = fullfact( obj.DesignObj.Levels );
             Lvls = obj.DesignObj.mapLevels( Lvls );
+            Lvls = Lvls( :, ~Cat );
+            Lvls = unique( Lvls, 'rows', 'stable' );
+            ContLvls = obj.DesignObj.Levels( ~Cat );
             R = ContLvls(1);
             C = ContLvls(2);
             ConFacs = obj.DesignObj.Factor.Properties.RowNames( ~Cat );
@@ -339,7 +394,7 @@ classdef correlationAnalysis
             %--------------------------------------------------------------
             figure;
             Ax = repmat( axes, R, C );
-            Facs = unique( string( D.( obj.Facility ) ) );
+            Facs = unique( D.( obj.Facility ) );
             LegStr = true( obj.NumFacLvl, NumPlots );
             Color = [ "red", "blue", "green", "magenta", "black" ].';
             for F = 1:numel( Facs )
@@ -347,7 +402,7 @@ classdef correlationAnalysis
                 % Plot the data for the current factor settings by
                 % facility as a parameter
                 %------------------------------------------------------
-                Fidx =  strcmpi( D.( obj.Facility ), Facs( F ) );       % Point to the data for the current facility
+                Fidx = ( D.( obj.Facility ) == Facs( F ) );                 % Point to the data for the current facility
                 %------------------------------------------------------
                 % Find the data corresponding to the current levels for
                 % the Fth facility
@@ -391,8 +446,9 @@ classdef correlationAnalysis
                 axes( Ax( Q ) );                                            %#ok<LAXES>
                 Ax( Q ).FontSize = 12;
                 warning off;
-                legend( Facs( LegStr( :, Q ) ), 'Location', 'eastoutside',...
-                                              'Orientation', 'Vertical' );
+                Facs = correlationFacility( Facs );
+                legend( string( Facs( LegStr( :, Q ) ) ), 'Location',...
+                                'eastoutside', 'Orientation', 'Vertical' );
                 warning on;
             end
         end % plotRateData
@@ -424,6 +480,43 @@ classdef correlationAnalysis
             S.Yname = obj.Response;
         end % genRateOpts
     end % private methods
+    
+    methods ( Static = true, Access = protected )
+        function commonAxesLimits( Ax )
+            %--------------------------------------------------------------
+            % Enusre subplots have common axes limits
+            %
+            % obj.commonAxesLimits( Ax );
+            %
+            % Input Arguments:
+            %
+            % Ax    --> Array of axes handles
+            %--------------------------------------------------------------
+            N = numel( Ax );
+            Str = [ "XLim", "YLim", "ZLim" ];
+            D = numel( Str );
+            for Q = 1:D
+                 Lim = [ Ax.( Str( Q ) ) ];
+                 Lim = [ Lim( 1:2:end ); Lim( 2:2:end ) ].';
+                 switch lower( Str( Q ) )
+                     case "xlim"
+                         XMin = min( Lim( :, 1 ) );
+                         XMax = max( Lim( :, 2 ) );
+                     case "ylim"
+                         YMin = min( Lim( :, 1 ) );
+                         YMax = max( Lim( :, 2 ) );
+                     otherwise
+                         ZMin = min( Lim( :, 1 ) );
+                         ZMax = max( Lim( :, 2 ) );
+                 end
+            end
+            for Q = 1:N
+                Ax( Q ).XLim = [ XMin, XMax ];
+                Ax( Q ).YLim = [ YMin, YMax ];
+                Ax( Q ).ZLim = [ ZMin, ZMax ];
+            end
+        end % commonAxesLimits
+    end % static and proteected methods
 end % correlationAnalysis
 
 function mustBeDataObj( DataObj )

@@ -77,7 +77,7 @@ classdef ( Abstract = true ) correlationDataStore < handle
                     obj.DataTable = Data;
                 else
                     Data = Data( :, obj.Variables );
-                    obj.DataTable = vertcat( obj.Datatable, Data );
+                    obj.DataTable = vertcat( obj.DataTable, Data );
                 end
             else
                 %----------------------------------------------------------
@@ -168,6 +168,9 @@ classdef ( Abstract = true ) correlationDataStore < handle
             Data = Data( ( 3:end ), : );
             Data = cell2table( Data );
             Data.Properties.VariableNames = obj.Variables;
+            T = string( Data.Temperature );
+            T = double( T );
+            Data.Temperature = T;
         end % importData            
         
         function Ok = chkFileFormat( obj, Fname )
