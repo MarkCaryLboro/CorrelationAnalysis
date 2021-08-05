@@ -12,7 +12,6 @@ classdef correlationAnalysis
         MatchedData 	              table                                 % Matched data to design
         Response    (1,1)             string      = "DischargeCapacity"     % Response variable
         RespUnits   (1,1)             string      = "[Ah]"                  % Response units
-        S2          (1,1)             double                                % Pooled level-1 variance
     end
     
     properties ( SetAccess = protected, Dependent = true )
@@ -43,6 +42,7 @@ classdef correlationAnalysis
             obj.ModelObj = ModelObj;
             obj.ReportObj = ReportObj;
             obj = obj.mapDataChannels();
+            obj = obj.matchData2Design;
         end % constructor
         
         function Ai = getAi( obj )
