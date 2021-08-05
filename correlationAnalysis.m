@@ -51,25 +51,8 @@ classdef correlationAnalysis
             %
             % Ai = obj.getAi();
             %--------------------------------------------------------------
-            D = obj.getData( true );
-            %--------------------------------------------------------------
-            % Extract the factors
-            %--------------------------------------------------------------
-            D = D( :, obj.FacNames );
-            Xc = obj.DesignObj.code( table2array( D ) );
-            %--------------------------------------------------------------
-            % Remove all repeated data, including replicates
-            %--------------------------------------------------------------
-            Xc = unique( Xc, 'rows', 'stable' );
-            X = repmat( Xc, obj.DesignObj.Reps, 1 );
-            Finish = 0;
-            for Q = 1:size( Xc, 1 )
-                Start = Finish + 1;
-                Finish = 3*Q;
-                X( Start:Finish, : ) = repmat( Xc( Q, : ),... 
-                                               obj.DesignObj.Reps, 1 );
-            end
-            Ai = obj.ModelObj.basis( X );
+            D = obj.getData( true );     
+            Ai = obj.ModelObj.getAi( D );
         end % getAi
         
         function obj = fitModel( obj )
@@ -82,16 +65,6 @@ classdef correlationAnalysis
             S = obj.genModelOpts();
             obj.ModelObj = obj.ModelObj.fitModel( D, S );
         end % fitModel
-        
-        function obj = performAnalysis( obj )
-            %--------------------------------------------------------------
-            % Perform the analysis
-            %
-            % obj = obj.performAnalysis();
-            %--------------------------------------------------------------
-            D = obj.DesignObj.getData();                                    % Fetch the data
-            obj.ModelObj = obj.ModelObj.fitModel( D );                      % Identify the model
-        end % performAnalysis
         
         function obj = setFacilityVariable( obj, F )
             %--------------------------------------------------------------
@@ -316,7 +289,7 @@ classdef correlationAnalysis
             end
             D = obj.DataObj.DataTable;
             %--------------------------------------------------------------
-            % Now substitute the data channel faactor names
+            % Now substitute the data channel factor names
             %--------------------------------------------------------------
             FacName = string( obj.MatchList.Properties.RowNames );
             N = obj.DesignObj.NumFac;
@@ -326,8 +299,25 @@ classdef correlationAnalysis
                 D.Properties.VariableNames{ Idx } = char( FacName( Q ) );
             end
             if Convert2Double
-                D.( obj.Facility ) = double( correlationFacility(... 
-                                     string( D.( obj.Facility ) ) ) );
+                %----------------------------------------------------------
+                % Convert all categorical variables to their ordinal values
+                %----------------------------------------------------------
+                F = obj.DesignObj.Factor;
+                NumFacs = height( F );
+                for Q = 1:NumFacs
+                    Name = obj.FacNames( Q );
+                    C = F.Levels( Q );
+                    if iscell( C )
+                        C = C{ : };
+                    end
+                    if isa( C, "categorical" )
+                        CatNames = categories( C );
+                        ValueSet = 1:numel( CatNames );
+                        CatVar = categorical( D.( Name ), CatNames,...
+                                    string( ValueSet ), 'Ordinal', true );
+                        D.( Name ) = double( CatVar );
+                    end
+                end
             end
         end % getData
     end % constructor & ordinary methods

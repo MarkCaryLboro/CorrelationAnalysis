@@ -13,14 +13,21 @@ classdef rateModel < correlationModel
     end % immutable properties  
     
     properties ( SetAccess = protected )
-        Theta   (:,1)   double                                              % Level-2 regression coefficients
-        Omega   (1,3)   double                                              % Level-2 covariance model coefficients
         MleObj      	                                                    % MLE analysis object
         Model           supportedModelType                      = "linear"  % Facility model terms
         B       (2,:)   double                                              % Level-1 fit coefficients
         S2      (1,1)   double                                              % Pooled level-1 variance parameter
         F       (1,:)   cell                                                % Level-1 information matrix
     end % protected properties    
+    
+    properties ( SetAccess = protected, Dependent = true )
+        Theta   (:,1)   double                                              % Level-2 regression coefficients
+        Omega   (1,3)   double                                              % Level-2 covariance model coefficients
+        D               double                                              % Level-2 covariance matrix
+        C               double                                              % level-2 correlation matrix
+        T               double                                              % level-2 standard errors
+        CovQ            double                                              % Covariance matrix for Theta
+    end % Dependent properties
     
     methods
         function obj = rateModel( DesignObj, MleObj )
@@ -115,7 +122,8 @@ classdef rateModel < correlationModel
                     Z = [ X obj.interactionTerms( X ) obj.quadTerms( X ) ];
                 case "complete"
                     [ Q, IxQ ] = obj.quadTerms( X );
-                    Z = [ X obj.interactionTerms( X ), Q, IxQ  ];
+                    Qcat = obj.quadCatTerms( X );
+                    Z = [ X obj.interactionTerms( X ), Q, IxQ, Qcat  ];
             end
             Z = [ ones( size( X, 1 ), 1 ), Z ];
             A = cell( 1, R );
@@ -167,12 +175,12 @@ classdef rateModel < correlationModel
                 Lcells = unique( L( :, obj.Design.FacNames ), 'rows',...
                                        'stable' );
                 NL = height( Lcells );
-                for C = 1:NL
+                for C_ = 1:NL
                     %------------------------------------------------------
                     % Fit the local model for each sweep
                     %------------------------------------------------------
                     K = K + 1;
-                    I = L{ :, obj.Design.FacNames } == Lcells{ C, : };
+                    I = L{ :, obj.Design.FacNames } == Lcells{ C_, : };
                     I = all( I, 2 );
                     X = L{ I, 'Cycle' };
                     X = [ ones( size( X, 1 ), 1 ), X ];                        %#ok<AGROW>
@@ -224,10 +232,8 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             % Generate the level-2 covariate matrices
             %--------------------------------------------------------------
-            A = D( :, obj.FacNames );
-            A = table2array( A );
-            A = unique( A, 'stable', 'rows' );
-            A = obj.Design.code( A );
+            A = obj.getAi( D );
+            obj.MleObj = obj.MleObj.mleRegTemplate( A, obj.F, obj.B );
         end % fitModel
         
         function obj = defineModel( obj, Model )
@@ -239,18 +245,50 @@ classdef rateModel < correlationModel
             % Input Arguments:
             %
             % Model     --> (string) Facility model type, either {"linear"}
-            %               or "interaction"
+            %               "interaction", "quadratic" or "complete"
             %--------------------------------------------------------------
-            if ( nargin < 2 )
-                Model = "linear";
-            else
-                Model = lower( Model );
+            arguments
+                obj     (1,1)   rateModel       { mustBeNonempty( obj ) }
+                Model   (1,1)   string          = string.empty;
             end
-            obj.Model = supportedModelType( Model );
+            try
+                obj.Model = supportedModelType( Model );
+            catch
+                obj.Model = supportedModelType( "linear" );
+            end
         end % defineModel
+        
+        function A = getAi( obj, D )
+            %--------------------------------------------------------------
+            % Return the cell array of level-2 regression matrices
+            %
+            % Input Arguments:
+            %
+            % D     --> (table) Data table
+            %--------------------------------------------------------------
+            Idx = ( D.Cycle == 1 );
+            A = D( Idx, obj.FacNames );
+            A = table2array( A );
+            A = obj.Design.code( A );
+            A = obj.basis( A );
+        end % getAi
     end % Constructor and ordinary methods
     
     methods
+        function Q = get.Theta( obj )  
+            % Level-2 regression coefficients
+            Q = obj.MleObj.Theta;
+        end
+        
+        function W = get.Omega( obj )  
+            % Level-2 covariance model coefficients
+            W = obj.MleObj.Omega;
+        end
+        
+        function D = get.D( obj )
+            % Level-2 covariance matrix
+            D = obj.MleObj.D;
+        end
     end % get/set methods
     
     methods ( Access = private )
@@ -286,8 +324,6 @@ classdef rateModel < correlationModel
             %
             % X     --> (double) data in coded units
             %--------------------------------------------------------------
-            Cont = ( obj.Factor.Type == "CONTINUOUS" ).';
-            X = X( :, Cont );
             [ N, C ] = size( X );
             Nint = factorial( C )/ factorial( 2 )/factorial( C - 2 );
             I = zeros( N, Nint );
@@ -321,6 +357,22 @@ classdef rateModel < correlationModel
             ContL = Cont & ( obj.Factor.NumLevels.' <= 2 );
             Q = X( :, ContQ ).^2;
             IxQ = X( :, ContL ).*Q;
-        end
+        end % quadTerms
+        
+        function Q = quadCatTerms( obj, X )
+            %--------------------------------------------------------------
+            % Return matrix of quadratic terms if a categorical factor has
+            % 3 or more levels.
+            %
+            % Q = obj.quadCatTerms( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> (double) data in coded units
+            %--------------------------------------------------------------
+            Cat = ( obj.Factor.Type == "CATEGORICAL" ).';
+            CatQ = Cat & ( obj.Factor.NumLevels.' > 2 );
+            Q = X( :, CatQ ).^2;
+        end % quadCatTerms
     end
 end % rateModel
