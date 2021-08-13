@@ -4,12 +4,15 @@ classdef ( Abstract = true ) correlationReport < handle
     properties ( SetAccess = protected )
         Alpha   (1,1)   double      { mustBeGreaterThan( Alpha, 0 ), ...
                                       mustBeLessThan( Alpha, 0.2 ) } = 0.05 % Significance level-1
+        M       (1,1)               { mustBeNonempty( M ) }
     end % protected properties
     
     methods ( Abstract = true )
         H = hypothesisTest( obj, varargin )                                 % Conduct hypothesis testing
         CF = correctionFactor( obj, varargin )                              % Calculate correction factors
-        
+        surf( obj, varargin )                                               % plot surfaces for Bo and B1 for a given facility
+        cont( obj, varargin )                                               % contour plots for Bo and B1 for a given facility
+        compare( obj, varargin )                                            % compare Bo and B1 surfaces for two facilities
     end % ordinary & abstract methods
     
     methods

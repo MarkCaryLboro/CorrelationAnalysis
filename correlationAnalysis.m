@@ -6,7 +6,7 @@ classdef correlationAnalysis
         DataObj     (1,1)           { mustBeDataObj( DataObj ) }            % Data object                      
         DesignObj   (1,1)           { mustBeDesignObj( DesignObj ) }        % Design object
         ModelObj    (1,1)           { mustBeModelObj( ModelObj ) }          % Model to be fitted
-        ReportObj   (1,1)             correlationReport                     % Report generator
+        ReportObj   (1,1)           { mustBeReportObj( ReportObj ) }        % Report generator
         Facility    (1,1)             string      = "Facility"              % Facility variable
         MatchList                     table                                 % List of matched factor and signal names
         MatchedData 	              table                                 % Matched data to design
@@ -20,6 +20,7 @@ classdef correlationAnalysis
         FacNames    (1,:)           string                                  % Design Factor Names
         FacSymbols  (1,:)           string                                  % Design Factor Symbols
         NumTests    (1,1)           double                                  % Number of cells
+        ModelSym    (1,:)           string                                  % Model basis functions
     end % Dependent properties
     
     methods
@@ -54,7 +55,7 @@ classdef correlationAnalysis
             D = obj.getData( true );     
             Ai = obj.ModelObj.getAi( D );
         end % getAi
-        
+                        
         function obj = fitModel( obj )
             %--------------------------------------------------------------
             % Identify the model parameters from the data
@@ -198,6 +199,38 @@ classdef correlationAnalysis
                 obj.DataObj.missingChannels( DataChannels( ~Ok ) );
             end    
         end % mapDataChannels
+        
+        function H = hypothesisTest( obj, A, P )
+            %--------------------------------------------------------------
+            % Conduct multiple linear hypothesis test on Theta vector
+            %
+            % H = obj.hypothesisTest( obj, A, P)
+            %
+            % Input Arguments:
+            %
+            % A --> (double) (mxk) matrix of contrasts
+            % P --> (double) Significance value for the test (0 < P < 0.2)
+            %
+            % Notes:
+            %
+            % If matrix "A" is not specified then it is assumed only the
+            % facility terms require testing. Under these circumstances
+            % "A" is automatically generated.
+            %--------------------------------------------------------------
+            arguments
+                obj     (1,1)   correlationAnalysis
+                A               double                    
+                P       (1,1)   double                  { mustBeGreaterThan( P, 0 ),...
+                                                          mustBeLessThan( P, 0.2 ) } = 0.05
+            end
+            if ( nargin < 3  || isempty( A ) )
+                A = obj.getDefaultCon();
+            end
+            assert( size( A, 2 ) == numel( obj.ModelObj.Theta ), ...
+                    'Number of columns of "A" must be %3.1f',...
+                    numel( obj.ModelObj.Theta ) );
+            H = obj.ReportObj.hypothesisTest( A, P );
+        end % hypothesisTest
         
         function Ax = plot( obj )
             %--------------------------------------------------------------
@@ -344,6 +377,11 @@ classdef correlationAnalysis
             T = lower( string( obj.DesignObj.TestType ) );
         end
         
+        function S = get.ModelSym( obj )
+            % retrieve the model in symbolic form
+            S = obj.ModelObj.Syms;
+        end
+        
         function M = get.NumTests( obj )
             % retrieve the number of cells
             T = obj.DataObj.DataTable;
@@ -469,6 +507,15 @@ classdef correlationAnalysis
             S.Xname = "Cycle";
             S.Yname = obj.Response;
         end % genRateOpts
+        
+        function A = getDefaultCon( obj )
+            %--------------------------------------------------------------
+            % Retrieve default contrast vector
+            %
+            % A = getDefaultCon();
+            %--------------------------------------------------------------
+            A = obj.ModelObj.getDefaultCon();
+        end % getDefaultCon
     end % private methods
     
     methods ( Static = true, Access = protected )
@@ -506,7 +553,7 @@ classdef correlationAnalysis
                 Ax( Q ).ZLim = [ ZMin, ZMax ];
             end
         end % commonAxesLimits
-    end % static and proteected methods
+    end % static and protected methods
 end % correlationAnalysis
 
 function mustBeDataObj( DataObj )
@@ -537,7 +584,7 @@ end % mustBeDesignObj
 
 function  mustBeModelObj( ModelObj )
     %----------------------------------------------------------------------
-    % Validation function for DesignObj property
+    % Validation function for ModelObj property
     %----------------------------------------------------------------------
     AllowedClasses = [ "rateModel", "pulseModel", "capacityModel" ];
     C = class( ModelObj );
@@ -546,4 +593,18 @@ function  mustBeModelObj( ModelObj )
         Msg = "ModelObj is not a supported class!";
         assert( Ok, Msg );
     end
-end % mustBeDesignObj
+end % mustBeModelObj
+
+function mustBeReportObj( ReportObj )
+    %----------------------------------------------------------------------
+    % Validation function for ReportObj property
+    %----------------------------------------------------------------------
+    AllowedClasses = [ "correlationRateReport", "correlationPulseReport",...
+        "correlationCapacityReport" ];
+    C = class( ReportObj );
+    if ~isnumeric( ReportObj )
+        Ok = any( strcmpi( C, AllowedClasses ) );
+        Msg = "ModelObj is not a supported class!";
+        assert( Ok, Msg );
+    end
+end % mustBeReportObj

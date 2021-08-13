@@ -14,10 +14,11 @@ classdef rateModel < correlationModel
     
     properties ( SetAccess = protected )
         MleObj      	                                                    % MLE analysis object
-        Model           supportedModelType                      = "linear"  % Facility model terms
+        Model           supportedModelType          = "linear"              % Facility model terms
         B       (2,:)   double                                              % Level-1 fit coefficients
         S2      (1,1)   double                                              % Pooled level-1 variance parameter
         F       (1,:)   cell                                                % Level-1 information matrix
+        Syms    (1,:)   string                                              % basis function list
     end % protected properties    
     
     properties ( SetAccess = protected, Dependent = true )
@@ -69,27 +70,59 @@ classdef rateModel < correlationModel
             % A     --> Ageing conditions ( level-2 covariate matrix)
             % X     --> Cycle number to predict ( level-1 covariate );
             %--------------------------------------------------------------
+            
         end % predictions
         
         function obj = setModel( obj, ModelStr )
             %--------------------------------------------------------------
-            % Set the facility interaction model type to either "linear" or
-            % "interaction".
+            % Set the facility interaction model type to either "linear",
+            % "interaction", "quadratic" or "complete".
             %
             % obj = obj.setModel( ModelStr );
             %
             % Input Arguments:
             %
-            % ModelStr  --> (string) Required model, either "linear" or
-            %               "interaction".
+            % ModelStr  --> (string) Required model, either "linear",
+            %               "interaction", "quadratic" or "complete".
             %--------------------------------------------------------------
             try
                 obj.Model = ModelStr;
+                obj = obj.setModelSyms();
             catch
                 warning('Property "Model" not changed');
             end
         end % setModel
-            
+        
+        function obj = setModelSyms( obj )
+            %--------------------------------------------------------------
+            % Define model symbology for identifying terms in future
+            % hypothesis tests
+            %
+            % obj = obj.setModelSyms();
+            %--------------------------------------------------------------
+            S = obj.Factor.Symbol.';                                        % Factor symbols
+            Int = obj.getInteractionSyms( S );                              % Define any linear interaction terms
+            Qcon = obj.getConPureQuadSyms( S );                             % Define any pure continuous quadratic terms
+            IQcon = obj.getConLinQuadSyms( S );                             % Define any lin times quad continuous terms
+            Qcat = obj.getCatPureQuadSyms( S );                             % Define any pure quadratic categorical terms
+            switch string( obj.Model )
+                case "interaction"
+                    %------------------------------------------------------
+                    % Interactions Necessary
+                    %------------------------------------------------------
+                    S = [ S Int ];
+                case "quadratic"
+                    %------------------------------------------------------
+                    % Quadratic Terms Required
+                    %------------------------------------------------------
+                    S = [ S Int Qcon ];
+                case "complete"
+                    S = [ S Int Qcon IQcon Qcat ];
+            end
+            S = [ "1" S ];                                                  % Add constant
+            obj.Syms = S;                                                   % Answer for a linear model
+        end % setModelSyms
+        
         function A = basis( obj, X ) 
             %--------------------------------------------------------------
             % Generate basis function matrix    
@@ -112,7 +145,6 @@ classdef rateModel < correlationModel
                                                       mustBeReal( X ) }
             end
             R = size( X, 1 );
-            Z = ones( R, 1 );
             switch obj.Model
                 case "linear"
                     Z = X;
@@ -272,6 +304,18 @@ classdef rateModel < correlationModel
             A = obj.Design.code( A );
             A = obj.basis( A );
         end % getAi
+        
+        function A = getDefaultCon( obj )
+            %--------------------------------------------------------------
+            % Retrieve default contrast vector
+            %
+            % A = getDefaultCon();
+            %--------------------------------------------------------------
+            Fac = obj.Design.Factor{ obj.Facility, "Symbol" };
+            A = double( contains( obj.Syms, Fac ) );
+            A = repmat( A, 1, size( obj.B, 1 ) );
+        end % getDefaultCon
+
     end % Constructor and ordinary methods
     
     methods
@@ -288,6 +332,21 @@ classdef rateModel < correlationModel
         function D = get.D( obj )
             % Level-2 covariance matrix
             D = obj.MleObj.D;
+        end
+        
+        function V = get.CovQ( obj )
+            % Level-2 covariance matrix
+            V = obj.MleObj.CovQ;
+        end
+        
+        function T = get.T( obj )
+            % Level-2 standard errors
+            T = sqrt( diag( obj.D ) );
+        end
+        
+        function C = get.C( obj )
+            % Level-2 correlation matrix
+            C = obj.D ./ ( obj.T * obj.T.' );
         end
     end % get/set methods
     
@@ -313,28 +372,6 @@ classdef rateModel < correlationModel
                 FxL = X.*Fac;
             end
         end % facilityIntTerms
-        
-        function I = interactionTerms( obj, X )
-            %--------------------------------------------------------------
-            % Return continuous interaction terms
-            %
-            % I = obj.interactionTerms( X );
-            %
-            % Input Arguments:
-            %
-            % X     --> (double) data in coded units
-            %--------------------------------------------------------------
-            [ N, C ] = size( X );
-            Nint = factorial( C )/ factorial( 2 )/factorial( C - 2 );
-            I = zeros( N, Nint );
-            K = 0;
-            for Q = 1:( C - 1 )
-                for R = ( Q + 1 ):C
-                    K = K + 1;
-                    I( :, K ) = X( :, Q ).*X( :, R );
-                end
-            end
-        end % interactionTerms
         
         function [ Q, IxQ ] = quadTerms( obj, X )
             %--------------------------------------------------------------
@@ -374,5 +411,126 @@ classdef rateModel < correlationModel
             CatQ = Cat & ( obj.Factor.NumLevels.' > 2 );
             Q = X( :, CatQ ).^2;
         end % quadCatTerms
-    end
+        
+        function Qcat = getCatPureQuadSyms( obj, S )
+            %--------------------------------------------------------------
+            % Return pure quad terms for categorical factors
+            %
+            % Qcat = obj.getCatPureQuadSyms( S );
+            %
+            % input Arguments:
+            %
+            % S     --> (string) Linear factor symbols list
+            %--------------------------------------------------------------
+            Cat = ( obj.Factor.Type == "CATEGORICAL" ).';
+            Cat = Cat & ( obj.Factor.NumLevels.' > 2 );
+            K = 0;
+            Qcat = string.empty( 0, sum( Cat ) );
+            for Q = 1:obj.NumFac
+                if ( Cat( Q ) )
+                    K = K + 1;
+                    Qcat( K ) = strjoin( [ S( Q ), "2" ], "^" );
+                end
+            end
+        end % getCatPureQuadSyms
+        
+        function IQcon = getConLinQuadSyms( obj, S )
+            %--------------------------------------------------------------
+            % Return linear times quadratic interactions for continuous
+            % variables
+            %
+            % IQcon = obj.getConLinQuadSyms( S );
+            %
+            % input Arguments:
+            %
+            % S     --> (string) Linear factor symbols list
+            %--------------------------------------------------------------
+            Cont = ( obj.Factor.Type == "CONTINUOUS" ).';
+            Quad = Cont & ( obj.Factor.NumLevels.' > 2 );
+            Lin = Cont & ( obj.Factor.NumLevels.' <= 2 );
+            SS = arrayfun( @( X )strjoin( [ X, "2" ], "^" ), S );
+            SS = SS( Quad );
+            Finish = 0;
+            IQcon = string.empty( 0, sum( Lin ) * sum( Quad ) );
+            for Q = 1:obj.NumFac
+                if Lin( Q ) 
+                    for R = 1:sum( Quad )
+                        Start =  Finish + 1;
+                        Finish = Start + numel( SS ) - 1;
+                        A = S( Lin( Q ) );
+                        IQcon( Start:Finish ) = arrayfun( @( X )strjoin( ...
+                            [ A, X ], "*"), SS );
+                    end
+                end
+            end
+        end
+        
+        function Qcon = getConPureQuadSyms( obj, S )
+            %--------------------------------------------------------------
+            % Return pure quadratic syms for continuous factors
+            %
+            % Qcon = obj.getConPureQuadSyms( S );
+            %
+            % input Arguments:
+            %
+            % S     --> (string) Linear factor symbols list
+            %--------------------------------------------------------------
+            Cont = ( obj.Factor.Type == "CONTINUOUS" ).';
+            Cont = Cont & ( obj.Factor.NumLevels.' > 2 );
+            K = 0;
+            Qcon = string.empty( 0, sum( Cont ) );
+            for Q = 1:obj.NumFac
+                if ( Cont( Q ) )
+                    K = K + 1;
+                    Qcon( K ) = strjoin( [ S( Q ), "2" ], "^" );
+                end
+            end
+        end % getConPureQuadSyms
+        
+        function I = getInteractionSyms( obj, S )
+            %--------------------------------------------------------------
+            % Return Interaction Symbol Strings
+            %
+            % Int = obj.getInteractionSyms( S );
+            %
+            % input Arguments:
+            %
+            % S     --> (string) Linear factor symbols list
+            %--------------------------------------------------------------
+            NumInt = factorial( obj.NumFac ) / factorial( 2 )...
+                     / factorial( obj.NumFac - 2 );
+            I = string.empty( 0, NumInt );
+            K = 0;
+            for Q = 1:( NumInt - 1 )
+                for R = ( Q + 1 ):NumInt
+                    K = K + 1;
+                    I( K ) = strjoin( [ S( Q ), S( R ) ], "*");
+                end
+            end
+        end % getInteractionSyms
+    end % private methods
+    
+    methods ( Access = protected, Static = true )
+        function I = interactionTerms( X )
+            %--------------------------------------------------------------
+            % Return continuous interaction terms
+            %
+            % I = obj.interactionTerms( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> (double) data in coded units
+            %--------------------------------------------------------------
+            [ N, C_ ] = size( X );
+            Nint = factorial( C_ )/ factorial( 2 )/factorial( C_ - 2 );
+            I = zeros( N, Nint );
+            K = 0;
+            for Q = 1:( C_ - 1 )
+                for R = ( Q + 1 ):C_
+                    K = K + 1;
+                    I( :, K ) = X( :, Q ).*X( :, R );
+                end
+            end
+        end % interactionTerms
+    end % Static methods
 end % rateModel
