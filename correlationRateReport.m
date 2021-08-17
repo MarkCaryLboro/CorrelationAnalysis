@@ -65,20 +65,207 @@ classdef correlationRateReport < correlationReport
                 "DoF", "P-value", "P", "Ho" ];
         end % hypothesisTest
         
-        function CF = correctionFactor( obj, A, Ai )
+        function [ OfCF, SlpCF, Off, Slp, OffRef, SlpRef, C, T ] = correctionFactor( obj, Fac, N )
+            %--------------------------------------------------------------
+            % Generate correction factors for the slope and offset term.
+            %
+            % [ OfCF, SlpCF, Off, Slp, OffRef, SlpRef, C, T ] = ...
+            %                               obj.correctionFactor( Fac, N );
+            %
+            % Input Arguments:
+            %
+            % Fac   --> Facility name (string)
+            % N     --> Mesh size (double)
+            %
+            % Output Arguments:
+            %
+            % OfCF      --> (NxN) matrix of B0 correction factors
+            % SlpCF     --> (NxN) matrix of B1 correction factors
+            % Off       --> (NxN) of B0 coefficients for the specified
+            %               facility
+            % Slp       --> (NxN) of B1 coefficients for the specified
+            %               facility
+            % OffRef    --> (NxN) of B0 coefficients for the reference
+            %               facility
+            % SlpRef    --> (NxN) of B1 coefficients for the reference
+            %               facility
+            % C         --> (NxN) matrix of C-Rate factor levels
+            % T         --> (NxN) matrix of Temperature factor levels
+            %--------------------------------------------------------------
+            arguments
+                obj     (1,1)   correlationRateReport
+                Fac     (1,1)   string  { mustBeNonempty( Fac ) }
+                N       (1,1)   double  { mustBePositive( N ), mustBeReal( N ),...
+                                          mustBeNumeric( N ) } = 11;
+            end
+            %--------------------------------------------------------------
+            % Create correlationFacility object & convert to double
+            %--------------------------------------------------------------
+            F = correlationFacility( Fac );
+            F = double( F );
+            %--------------------------------------------------------------
+            % Create evaluation mesh
+            %--------------------------------------------------------------
+            Cont = ( obj.M.Design.Factor.Type == "CONTINUOUS" ).';
+            Cfactors = obj.M.FacNames( Cont );
+            NumContFac = numel( Cfactors );
+            for Q = 1:NumContFac
+                %----------------------------------------------------------
+                % Generate mesh vectors
+                %----------------------------------------------------------
+                switch lower( Cfactors( Q ) )
+                    case "temperature"
+                        T = obj.makeLevels( Cfactors( Q ), N );
+                    otherwise
+                        C = obj.makeLevels( Cfactors( Q ), N );
+                end
+            end
+            %--------------------------------------------------------------
+            % Generate level-2 ageing conditions matrix in engineering
+            % units
+            %--------------------------------------------------------------
+            [ C, T ] = meshgrid( C, T );
+            F = repmat( F, N.^2, 1 );
+            A = zeros( N.^2, obj.M.NumFac );
+            Cat = obj.M.Design.Cat;
+            A( :, ~Cat ) = [ C( : ), T( : ) ];
+            A( :, Cat ) = F;
+            %--------------------------------------------------------------
+            % Generate correction factors
+            %--------------------------------------------------------------
+            [ B, Bref ] = obj.M.predictLvl1( A );
+            Off = reshape( B( 1, : ), N, N );
+            Slp = reshape( B( 2, : ), N, N );
+            OffRef = reshape( Bref( 1, : ), N, N );
+            SlpRef = reshape( Bref( 2, : ), N, N );
+            OfCF = OffRef - Off;
+            SlpCF = SlpRef - Slp  ;
         end % correctionFactor
         
-        function surf( obj, varargin )                                               
+        function Ax = surf( obj, Fac, N )
+            %--------------------------------------------------------------
             % plot surfaces for Bo and B1 for a given facility
+            %
+            % Ax = obj.surf( Fac, N );
+            %
+            % Input Arguments:
+            %
+            % Fac   --> Facility name (string)
+            % N     --> Mesh size (double)
+            %
+            % Output Arguments:
+            %
+            % Ax    --> Handles to axes objects
+            %--------------------------------------------------------------
+            [ OfCF, SlpCF, Off, Slp, OffRef, SlpRef,...
+                                   C, T ] = obj.correctionFactor( Fac, N );
+            Fac = string( correlationFacility( Fac ) );
+            S = sprintf("( Surf, Mesh ) = ( %s, Reference )", Fac );
+            figure;
+            Ax( 4 ) = subplot( 2, 2, 4);
+            for Q = 1:4
+                Ax( Q ) = subplot( 2, 2, Q);
+                Ax( Q ).NextPlot = 'add';
+                switch Q
+                    case 1
+                        surf( C, T, Off );
+                        mesh( C, T, OffRef );
+                        zlabel("\beta_0", 'FontSize', 16);
+                        title( S, 'FontSize', 16 );
+                    case 2
+                        surf( C, T, Slp );
+                        mesh( C, T, SlpRef );
+                        zlabel("\beta_1", 'FontSize', 16);
+                        title( S, 'FontSize', 16 );
+                    case 3
+                        mesh( C, T, OfCF );
+                        zlabel("\beta_0", 'FontSize', 16);
+                        title("Correction Factor", 'FontSize', 16);
+                    otherwise
+                        mesh( C, T, SlpCF );
+                        zlabel("\beta_1", 'FontSize', 16);
+                        title("Correction Factor", 'FontSize', 16);
+                end
+                view( Ax( Q ), 3 );
+                xlabel( "CRate", 'FontSize', 16 );
+                ylabel( "Temperature", 'FontSize', 16 );
+                grid on;
+            end
         end % surf
         
         function cont( obj, varargin )                                               
             % contour plots for Bo and B1 for a given facility
         end % cont
         
-        function compare( obj, varargin )                                            
-            % compare Bo and B1 surfaces for two facilities
+        function Ax = compare( obj, Facs, N )
+            %--------------------------------------------------------------
+            % Compare Bo and B1 surfaces for two facilities
+            %
+            % Ax = obj.compare( Facs, N );
+            %
+            % Input Arguments:
+            %
+            % Input Arguments:
+            %
+            % Facs  --> (1x2) Facility names (string)
+            % N     --> Mesh size (double)
+            %
+            % Output Arguments:
+            %
+            % Ax    --> Handles to axes objects
+            %--------------------------------------------------------------
+            arguments
+                obj     (1,1)   correlationRateReport
+                Facs    (1,2)   string  { mustBeNonempty( Facs ) }
+                N       (1,1)   double  { mustBePositive( N ), mustBeReal( N ),...
+                                          mustBeNumeric( N ) } = 11;
+            end
+            F = correlationFacility( Facs );
+            [ ~, ~, Off1, Slp1, ~, ~, C, T ] = correctionFactor( obj,...
+                                                            Facs( 1 ), N );
+            [ ~, ~, Off2, Slp2 ] = correctionFactor( obj, Facs( 2 ), N );
+            Ax( 2 ) = subplot( 1, 2, 2 );
+            S = sprintf("( Surf, Mesh ) = ( %s, %s )", string( F ) );
+            for Q = 2:-1:1
+                Ax( Q ) = subplot( 1, 2, Q );
+                Ax( Q ).NextPlot = 'add';
+                switch Q
+                    case 1
+                        surf( C, T, Off1 );
+                        mesh( C, T, Off2 );
+                        zlabel( "\beta_0", 'FontSize', 16 ); 
+                    otherwise
+                        surf( C, T, Slp1 );
+                        mesh( C, T, Slp2 );
+                        zlabel( "\beta_1", 'FontSize', 16 ); 
+                end
+                view( Ax( Q ), 3 );
+                grid on;
+                title( S, 'FontSize', 16 );
+                xlabel( "CRate", 'FontSize', 16 );
+                ylabel( "Temperature", 'FontSize', 16 );
+            end
         end % compare
         
     end % ordinary methods
+    
+    methods ( Access = private )
+        function X = makeLevels( obj, Factor, N )
+            %--------------------------------------------------------------
+            % Make a n-element vector for any specified factor
+            %
+            % X = obj.makeLevels( Factor, N );
+            %
+            % Input Arguments:
+            %
+            % Factor    --> Name of factor
+            % N         --> Number of levels
+            %--------------------------------------------------------------
+            Idx = strcmpi( Factor, obj.M.FacNames );
+            D = obj.M.Design;
+            Mn = D.Factor{ Idx, "Min" };
+            Mx = D.Factor{ Idx, "Max" };
+            X = linspace( Mn, Mx, N );
+        end % makeLevels
+    end % private methods
 end % correlationRateReport

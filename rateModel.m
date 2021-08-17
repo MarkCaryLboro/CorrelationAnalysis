@@ -31,20 +31,23 @@ classdef rateModel < correlationModel
     end % Dependent properties
     
     methods
-        function obj = rateModel( DesignObj, MleObj )
+        function obj = rateModel( DesignObj, MleObj, ModelType )
             %--------------------------------------------------------------
             % Class constructor
             %
-            % obj = rateModel( DesignObj, MleObj )
+            % obj = rateModel( DesignObj, MleObj, ModelType )
             %
             % Input Arguments:
             %
             % DesginObj     --> rateDesign object
             % MleObj        --> Maximum likelihood estimation object
+            % ModelType     --> Model type either: {"linear"},
+            %                   "interaction", "quadratic" or "complete"
             %--------------------------------------------------------------
             arguments
                 DesignObj   (1,1)   rateDesign          { mustBeNonempty( DesignObj ) }
-                MleObj      (1,1)   mleAlgorithms       { mustBeNonempty( MleObj ) }    = "EM";           
+                MleObj      (1,1)   mleAlgorithms       { mustBeNonempty( MleObj ) }    = "EM"; 
+                ModelType   (1,1)   string              = "linear"
             end
             obj.Design = DesignObj;
             if ( nargin < 2 ) || ~ismember( upper( MleObj ), [ "EM", "IGLS", "MLE" ] )
@@ -57,6 +60,8 @@ classdef rateModel < correlationModel
                     obj.MleObj = igls();
                 otherwise
             end
+            obj = obj.setModel( ModelType );
+            obj = obj.setModelSyms();
         end % constructor
         
         function Z = predictions( obj, A, X )                                    
@@ -72,6 +77,38 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             
         end % predictions
+        
+        function [ B, Bref ] = predictLvl1( obj, A )
+            %--------------------------------------------------------------
+            % Predict slope and offset at user-specified ageing conditions
+            %
+            % [ B, Bref ] = predictLvl1( obj, A );
+            %
+            % Input Arguments:
+            %
+            % A     --> (NxK) Matrix of ageing conditions ( double )
+            %
+            % Output Arguments:
+            %
+            % B     --> (Nxp) Matrix of level-1 fit coefficients
+            % Bref  --> (Nxp) Matrix of level-1 fit coefficients for
+            %           reference facility
+            %--------------------------------------------------------------
+            Ac = obj.Design.code( A );
+            Ac = obj.basis( Ac );
+            Rc = A;
+            Mdn = obj.Design.Factor{ obj.Facility, "Levels" };
+            Idx = strcmpi( obj.FacNames, obj.Facility );
+            Rc( :, Idx ) = median( double( Mdn{ : } ) );
+            Rc = obj.Design.code( Rc );
+            Rc = obj.basis( Rc );                                           % Reference basis
+            B = cellfun( @(X)mtimes( X, obj.Theta ), Ac, 'UniformOutput',...
+                                      false);
+            B = cell2mat( B );
+            Bref = cellfun( @(X)mtimes( X, obj.Theta ), Rc, 'UniformOutput',...
+                                      false);
+            Bref = cell2mat( Bref );
+        end % predictLvl1
         
         function obj = setModel( obj, ModelStr )
             %--------------------------------------------------------------
@@ -203,7 +240,7 @@ classdef rateModel < correlationModel
                 % Fit the local model for each sweep
                 %----------------------------------------------------------
                 Idx = strcmpi( D.SerialNumber, Sn{ Q } );
-                L = D( Idx, [ obj.Design.FacNames, "Cycle", Yname ] );
+                L = D( Idx, [ obj.Design.FacNames, Xname, Yname ] );
                 Lcells = unique( L( :, obj.Design.FacNames ), 'rows',...
                                        'stable' );
                 NL = height( Lcells );
@@ -457,7 +494,7 @@ classdef rateModel < correlationModel
                     for R = 1:sum( Quad )
                         Start =  Finish + 1;
                         Finish = Start + numel( SS ) - 1;
-                        A = S( Lin( Q ) );
+                        A = S( Q );
                         IQcon( Start:Finish ) = arrayfun( @( X )strjoin( ...
                             [ A, X ], "*"), SS );
                     end
