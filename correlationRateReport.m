@@ -47,7 +47,7 @@ classdef correlationRateReport < correlationReport
             V = obj.M.CovQ;                                                 % Covariance matrix for theta
             DoF = size( A, 1 );                                             % Number of hypotheses
             obj = obj.setAlpha( P );                                        % Set the significance level
-            XmA mkm lpha = chi2inv( ( 1 - obj.Alpha ), DoF );                    % Critical Chi-2 value
+            XmAlpha = chi2inv( ( 1 - obj.Alpha ), DoF );                    % Critical Chi-2 value
             %--------------------------------------------------------------
             % Compute the test statistic
             %--------------------------------------------------------------
@@ -55,7 +55,7 @@ classdef correlationRateReport < correlationReport
             V = A * V * A.';
             V = V \ I;
             Xm = ( A * Theta ).' * V * ( A * Theta );
-            Pvalue = chi2cdf( Xm, DoF );
+            Pvalue = 1 - chi2cdf( Xm, DoF );
             Ho = ( Pvalue < P );
             %--------------------------------------------------------------
             % Generate the report table
@@ -224,6 +224,7 @@ classdef correlationRateReport < correlationReport
             [ ~, ~, Off1, Slp1, ~, ~, C, T ] = correctionFactor( obj,...
                                                             Facs( 1 ), N );
             [ ~, ~, Off2, Slp2 ] = correctionFactor( obj, Facs( 2 ), N );
+            figure;
             Ax( 2 ) = subplot( 1, 2, 2 );
             S = sprintf("( Surf, Mesh ) = ( %s, %s )", string( F ) );
             for Q = 2:-1:1
