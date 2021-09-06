@@ -538,8 +538,8 @@ classdef rateModel < correlationModel
                      / factorial( obj.NumFac - 2 );
             I = string.empty( 0, NumInt );
             K = 0;
-            for Q = 1:( NumInt - 1 )
-                for R = ( Q + 1 ):NumInt
+            for Q = 1:( obj.NumFac - 1 )
+                for R = ( Q + 1 ):obj.NumFac
                     K = K + 1;
                     I( K ) = strjoin( [ S( Q ), S( R ) ], "*");
                 end

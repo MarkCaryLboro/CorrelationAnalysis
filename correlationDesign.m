@@ -21,6 +21,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         Design      table                                                   % Design table in engineering units
         Cat         logical                                                 % logical pointer to categorical variables
         NumCat      int8                                                    % Number of categorical variables
+        NumCon      int8                                                    % Number of continuous factors
         FacNames    string                                                  % List of factor names
     end % Dependent properties    
     
@@ -330,6 +331,11 @@ classdef ( Abstract = true ) correlationDesign < handle
         function Nc = get.NumCat( obj )
             % Return number of categorical variables
             Nc = int8( sum( obj.Cat ) );
+        end
+        
+        function Nc = get.NumCon( obj )
+            % Return number of continuous factors
+            Nc = obj.NumFac - obj.NumCat;
         end
     end % Get set methods    
     

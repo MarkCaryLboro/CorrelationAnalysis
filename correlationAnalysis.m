@@ -223,7 +223,7 @@ classdef correlationAnalysis
                 P       (1,1)   double                  { mustBeGreaterThan( P, 0 ),...
                                                           mustBeLessThan( P, 0.2 ) } = 0.05
             end
-            if ( nargin < 3  || isempty( A ) )
+            if ( nargin < 2  || isempty( A ) )
                 A = obj.getDefaultCon();
             end
             assert( size( A, 2 ) == numel( obj.ModelObj.Theta ), ...
@@ -413,7 +413,11 @@ classdef correlationAnalysis
             Lvls = unique( Lvls, 'rows', 'stable' );
             ContLvls = obj.DesignObj.Levels( ~Cat );
             R = ContLvls(1);
-            C = ContLvls(2);
+            if ( obj.DesignObj.NumCon > 1 )
+                C = ContLvls(2);
+            else
+                C = 1;
+            end
             ConFacs = obj.DesignObj.Factor.Properties.RowNames( ~Cat );
             ConFacs = string( ConFacs );
             NumPlots = prod( ContLvls );
@@ -442,7 +446,7 @@ classdef correlationAnalysis
                     %--------------------------------------------------
                     Ax( L ) = subplot( R, C, L );
                     Ax( L ).NextPlot = "add";
-                    axes( Ax( L ) );                                    %#ok<LAXES>
+                    axes( Ax( L ) );                                        %#ok<LAXES>
                     Idx = all( ( X{:,ConFacs.'} == Lvls( L, : ) ), 2 );
                     Xd = X( Idx, : );
                     H = plot( Xd.Cycle, Xd.( obj.Response ), 's' );
