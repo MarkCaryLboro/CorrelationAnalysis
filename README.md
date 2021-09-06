@@ -1,2 +1,27 @@
-# CorrelationAnalysis
- Battery testing facility correlation analysis
+Battery testing facility correlation analysis package
+
+Classes:
+
+anova
+allowableTestTypes
+correlationAnalysis
+correlationDesign
+capacityTest
+capacityTestAnalysis
+correlationDataStore
+correlationEM
+correlationModel
+correlationReport
+correlationVariableType
+mle
+pulseTest
+rateTest
+rateData
+rateDesign
+capacityTest
+
+Functions:
+
+capacityTestAnalysis
+pulseTestAnalysis
+rateTestAnalysis
