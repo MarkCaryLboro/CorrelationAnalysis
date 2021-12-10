@@ -58,8 +58,8 @@ classdef ( Abstract = true ) correlationDataStore < handle
             %               data
             %--------------------------------------------------------------
             arguments
-                obj(1,1)            
-                Fname        string         
+                obj     (1,1)            
+                Fname   (1,1)   string            
             end
             %--------------------------------------------------------------
             % check file exists

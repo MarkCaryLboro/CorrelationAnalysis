@@ -35,12 +35,13 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             % Class constructor
             %
-            % obj = rateModel( DesignObj, MleObj, ModelType )
+            % obj = rateModel( DesignObj, Algorithm, ModelType )
             %
             % Input Arguments:
             %
             % DesginObj     --> rateDesign object
-            % MleObj        --> Maximum likelihood estimation object
+            % Algorithm     --> algorithm type. Must be an mleAlgorithms
+            %                   object
             % ModelType     --> Model type either: {"linear"},
             %                   "interaction", "quadratic" or "complete"
             %--------------------------------------------------------------

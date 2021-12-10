@@ -1,9 +1,9 @@
-classdef rateDesign < correlationDesign
-    % Rate test experimental design object
+classdef pulseDesign < correlationDesign
+    % pulse test experimental design object
       
     properties ( Constant = true )
-        TestType    string          = "Rate";
-    end % constant & abstract properties
+        TestType    string          = "Pulse";
+    end % constant & abstract properties    
     
     methods
         function obj = design( obj, Replicates, SortOrder )
@@ -19,7 +19,7 @@ classdef rateDesign < correlationDesign
             % SortOrder     --> (int8) vector of sort columns.
             %--------------------------------------------------------------
             if ( nargin < 2 ) || ( Replicates < 1 )
-                Replicates = 3;
+                Replicates = 18;
             end
             if ( nargin < 3 ) || ~isnumeric( SortOrder ) || ( numel( SortOrder ) ~= obj.NumFac )
                 SortOrder = obj.getStandardOrder();
@@ -48,32 +48,6 @@ classdef rateDesign < correlationDesign
             obj.D = sortrows( obj.D, V );          
         end % design
         
-        function obj = setSortOrder( obj, SortOrder )
-            %--------------------------------------------------------------
-            % Set the order by which columns are sorted
-            %
-            % obj = obj.setSortOrder( SortOrder );
-            %
-            % Input Arguments:
-            %
-            % SortOrder     --> (int8) order in which to sort columns
-            %--------------------------------------------------------------
-            arguments
-                obj         (1,1)   rateDesign
-                SortOrder   (1,:)   int8        { mustBePositive( SortOrder ) }
-            end
-            UniqueOrder = unique( SortOrder );
-            IsUnique = ( numel( UniqueOrder ) == numel( SortOrder ) );
-            IsInRange = ( max( SortOrder ) == obj.NumFac ) & ...
-                        ( min( SortOrder ) == 1 );
-            Ok = IsUnique & IsInRange;
-            if Ok
-                obj.Order = SortOrder;
-            else
-                obj.Order = 1:obj.NumFac;
-            end
-        end % setSortOrder
-        
         function T = mapLevels( obj, T )
             %--------------------------------------------------------------
             % Map levels of the design
@@ -91,8 +65,34 @@ classdef rateDesign < correlationDesign
                 end
                 T( :, Q ) = Lev( T( :, Q ) ).';
             end
-        end % mapLevels
-    end % constructor and ordinary methods
+        end % mapLevels     
+        
+        function obj = setSortOrder( obj, SortOrder )
+            %--------------------------------------------------------------
+            % Set the order by which columns are sorted
+            %
+            % obj = obj.setSortOrder( SortOrder );
+            %
+            % Input Arguments:
+            %
+            % SortOrder     --> (int8) order in which to sort columns
+            %--------------------------------------------------------------
+            arguments
+                obj         (1,1)   pulseDesign
+                SortOrder   (1,:)   int8        { mustBePositive( SortOrder ) }
+            end
+            UniqueOrder = unique( SortOrder );
+            IsUnique = ( numel( UniqueOrder ) == numel( SortOrder ) );
+            IsInRange = ( max( SortOrder ) == obj.NumFac ) & ...
+                        ( min( SortOrder ) == 1 );
+            Ok = IsUnique & IsInRange;
+            if Ok
+                obj.Order = SortOrder;
+            else
+                obj.Order = 1:obj.NumFac;
+            end
+        end % setSortOrder        
+    end % ordinary methods
     
     methods ( Access = protected )
         function S = getStandardOrder( obj )
@@ -119,4 +119,4 @@ classdef rateDesign < correlationDesign
             S( ( obj.NumCat + 1 ):end ) = ConVar( Idx );
         end % getStandardOrder
     end % protected methods
-end % correlationDesign
+end % classdef
