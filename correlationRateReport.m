@@ -56,11 +56,11 @@ classdef correlationRateReport < correlationReport
             V = V \ I;
             Xm = ( A * Theta ).' * V * ( A * Theta );
             Pvalue = 1 - chi2cdf( Xm, DoF );
-            Ho = ( Pvalue < P );
+            H1 = ( Pvalue < P );
             %--------------------------------------------------------------
             % Generate the report table
             %--------------------------------------------------------------
-            T = table( { A }, Xm, XmAlpha, DoF, Pvalue, P, Ho ); 
+            T = table( { A }, Xm, XmAlpha, DoF, Pvalue, P, ~H1 ); 
             T.Properties.VariableNames = [ "a.'" "Test Statistic", "Critical Value", ...
                 "DoF", "P-value", "P", "Ho" ];
         end % hypothesisTest

@@ -1,4 +1,4 @@
-function pulseTestAnalysis( ModelType, Factors )
+function [ obj, Ax ] = pulseTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
@@ -52,4 +52,20 @@ function pulseTestAnalysis( ModelType, Factors )
                 Factors( Q ).Levels );
         end
     end
+    DesObj = DesObj.design();
+    %----------------------------------------------------------------------
+    % Import data
+    %----------------------------------------------------------------------
+    [ Fname, Pname ] = uigetfile( "*.xlsx",...
+                                  "Select File Containing Pulse Data" );
+    Fname = strjoin( { Pname, Fname }, "" );
+    DataObj = pulseData();
+    DataObj = DataObj.addData( Fname );
+    %----------------------------------------------------------------------
+    % Define mle algorithm
+    %----------------------------------------------------------------------
+    Mle = mleAlgorithms( "em" );
+    %----------------------------------------------------------------------
+    % Define Model object
+    %----------------------------------------------------------------------
 end % pulseTestAnalysis

@@ -1,4 +1,5 @@
 classdef rateModel < correlationModel
+    % Rate facility correlation test level-2 model class
     
     properties
         Facility    (1,1)             string        = "Facility"            % Facility variable
@@ -278,7 +279,7 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             % Perform the required repeated measurments analysis
             %
-            % obj = obj.fitModel( D, NumTests, S );
+            % obj = obj.fitModel( D, S );
             %
             % Input Arguments:
             %
