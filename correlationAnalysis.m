@@ -458,7 +458,7 @@ classdef correlationAnalysis
                         Str = strjoin( [ obj.Response, obj.RespUnits ],...
                             " " );
                         ylabel( Str, 'FontSize', 14 );
-                        Str = sprintf('( %s, %s ) = ( %5.2f, %3.1d )',...
+                        Str = sprintf('( %s, %s ) = ( %5.2f, %3.1f )',...
                             ConFacs, Lvls( L, : ) );
                         title( Str, 'FontSize', 14 );
                         grid on;
@@ -477,6 +477,9 @@ classdef correlationAnalysis
             for Q = 1:numel( Ax )
                 axes( Ax( Q ) );                                            %#ok<LAXES>
                 Ax( Q ).FontSize = 12;
+                Ax( Q ).GridAlpha = 0.75;
+                Ax( Q ).GridColor = [0.025 0.025 0.025];
+                Ax( Q ).GridLineStyle = "--";
                 warning off;
                 Facs = correlationFacility( Facs );
                 legend( string( Facs( LegStr( :, Q ) ) ), 'Location',...

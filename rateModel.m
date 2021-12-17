@@ -1,4 +1,5 @@
 classdef rateModel < correlationModel
+    % Rate facility correlation test level-2 model class
     
     properties
         Facility    (1,1)             string        = "Facility"            % Facility variable
@@ -35,12 +36,13 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             % Class constructor
             %
-            % obj = rateModel( DesignObj, MleObj, ModelType )
+            % obj = rateModel( DesignObj, Algorithm, ModelType )
             %
             % Input Arguments:
             %
             % DesginObj     --> rateDesign object
-            % MleObj        --> Maximum likelihood estimation object
+            % Algorithm     --> algorithm type. Must be an mleAlgorithms
+            %                   object
             % ModelType     --> Model type either: {"linear"},
             %                   "interaction", "quadratic" or "complete"
             %--------------------------------------------------------------
@@ -277,7 +279,7 @@ classdef rateModel < correlationModel
             %--------------------------------------------------------------
             % Perform the required repeated measurments analysis
             %
-            % obj = obj.fitModel( D, NumTests, S );
+            % obj = obj.fitModel( D, S );
             %
             % Input Arguments:
             %

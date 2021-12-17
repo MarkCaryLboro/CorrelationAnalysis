@@ -1,9 +1,9 @@
 classdef correlationFacility < int8
     enumeration
-        Lancaster   (1)
+        Lancaster   (3)
         Imperial    (2)
-        Oxford      (3)
         Warwick     (4)
-        Birmingham  (5)
+        Birmingham  (1)
+        Oxford      (5)
     end
 end % correlationFacility

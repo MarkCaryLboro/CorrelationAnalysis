@@ -15,6 +15,8 @@ correlationReport
 correlationVariableType
 mle
 pulseTest
+pulseData
+pulseDesign
 rateTest
 rateData
 rateDesign
