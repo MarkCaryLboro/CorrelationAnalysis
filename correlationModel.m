@@ -1,5 +1,5 @@
 classdef ( Abstract = true ) correlationModel < handle
-    % A container for the for the battery test facility correlation 
+    % A container for the for the battery test facility correlation
     % experiment analyses
     
     properties ( SetAccess = immutable, Abstract = true )
@@ -21,7 +21,7 @@ classdef ( Abstract = true ) correlationModel < handle
     end % private properties
     
     properties( SetAccess = protected, Dependent = true )
-        Factor              table                                           % Factor information 
+        Factor              table                                           % Factor information
         Dc                  double                                          % Coded design matrix
         FacNames            string                                          % DoE factor names
     end % dependent properties
@@ -30,20 +30,20 @@ classdef ( Abstract = true ) correlationModel < handle
     end % Private and dependent properties
     
     methods ( Abstract = true )
-        A = basis( obj, X )                                                 % Generate basis function matrix                                                        
+        A = basis( obj, X )                                                 % Generate basis function matrix
         obj = fitModel( obj, D )                                            % Perform the required analysis
         obj = defineModel( obj, Type )                                      % Define model
-        Z = predictions( obj, A, Cycle )                                    % Predictions
+        Z = predictions( obj, X )                                           % Predictions
     end % abstract method signatures
     
     methods
     end % ordinary methods
     
     methods
-       function N = get.NumFac( obj )
+        function N = get.NumFac( obj )
             % Return number of factors
             N = obj.Design.NumFac;
-       end
+        end
         
         function Dc = get.Dc( obj )
             % Get coded design matrix
@@ -61,10 +61,10 @@ classdef ( Abstract = true ) correlationModel < handle
         function F = get.FacNames( obj )
             % Return the factor names as a string
             F = obj.Design.FacNames;
-        end 
+        end
     end % get set methods
     
-    methods ( Access = protected )      
+    methods ( Access = protected )
     end % protected methods
     
     methods ( Access = private )

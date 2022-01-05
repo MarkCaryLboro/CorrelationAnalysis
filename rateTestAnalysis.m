@@ -58,7 +58,11 @@ function [ obj, Ax ] = rateTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     [ Fname, Pname ] = uigetfile( "*.xlsx",...
                                   "Select File Containing Rate Data" );
-    Fname = strjoin( { Pname, Fname }, "" );
+    try
+        Fname = strjoin( { Pname, Fname }, "" );
+    catch
+        error("Must select a data file - program terminated!");
+    end
     DataObj = rateData();
     DataObj = DataObj.addData( Fname );
     %----------------------------------------------------------------------

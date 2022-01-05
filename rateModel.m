@@ -66,18 +66,28 @@ classdef rateModel < correlationModel
             obj = obj.setModelSyms();
         end % constructor
         
-        function Z = predictions( obj, A, X )                                    
+        function Z = predictions( obj, X )                                    
             %--------------------------------------------------------------
             % Calculate predictions
             %
-            % Z = obj.predictions( A, X )
+            % Z = obj.predictions( X );
             %
             % Input Arguments:
             %
-            % A     --> Ageing conditions ( level-2 covariate matrix)
-            % X     --> Cycle number to predict ( level-1 covariate );
+            % X     --> Ageing conditions ( R x #factors );
+            %
+            % Output Arguments:
+            %
+            % Z     --> ( R x P ) matrix of level-1 coefficient vectors
             %--------------------------------------------------------------
-            
+            Xc = obj.Design.code( X );
+            A = obj.basis( Xc );
+            R = size( Xc, 1 );
+            P = size( obj.B, 1 );
+            Z = zeros( R, P );
+            for Q = 1:R
+                Z( Q, : ) = ( A{Q} * obj.Theta ).';
+            end
         end % predictions
         
         function [ B, Bref ] = predictLvl1( obj, A )
@@ -170,12 +180,12 @@ classdef rateModel < correlationModel
             %
             % Input Arguments:
             %
-            % X     --> (double) data array in coded units
+            % X     --> (double) (R x NumFac) data array in coded units
             %
             % Output Arguments:
             %
-            % A     --> (cell) (1xM) array of basis function matrices for
-            %           the ith training condition
+            % A     --> (cell) (1 x R) array of basis function matrices for
+            %           the ith configuration
             %--------------------------------------------------------------
             arguments
                 obj     (1,1)       rateModel
