@@ -64,6 +64,8 @@ classdef em < mle
                 X               cell        { mustBeNonempty( X ) }
                 B               double      { mustBeNonempty( B ) }
             end
+            P = any( B ~= 0 );
+            B = B( :, P );
             [ Sz, M ] = size( B );
             StopFlg = false;
             while ~StopFlg
@@ -75,10 +77,13 @@ classdef em < mle
                 % coefficients
                 %----------------------------------------------------------
                 for Q = 1:M
-                    C{ Q } = ( X{ Q } + Di );
-                    C{ Q } = C{ Q }\eye( Sz );
-                    obj.Bi( :, Q ) = C{ Q }*( X{ Q }*B( :, Q ) +...
-                                     Di*A{ Q }*obj.Theta);
+                    try
+                        C{ Q } = ( X{ Q } + Di );
+                        C{ Q } = C{ Q }\eye( Sz );
+                        obj.Bi( :, Q ) = C{ Q }*( X{ Q }*B( :, Q ) +...
+                            Di*A{ Q }*obj.Theta);
+                    catch
+                    end
                 end
                 %----------------------------------------------------------
                 % M-step - obtain updated estimates of the population
@@ -86,15 +91,28 @@ classdef em < mle
                 %
                 % 1. Level-2 regression coefficients.
                 %----------------------------------------------------------
-                ATDiA = A{ 1 }.' * Di * A{ 1 };
-                for Q = 2:M
-                    ATDiA = ATDiA + A{ Q }.' * Di * A{ Q };
+                ATDiA = [];
+                for Q = 1:M
+                    if isempty( ATDiA )
+                        try
+                            ATDiA = A{ Q }.' * Di * A{ Q };
+                        catch
+                        end
+                    else
+                        try
+                            ATDiA = ATDiA + A{ Q }.' * Di * A{ Q };
+                        catch
+                        end
+                    end
                 end
                 ATDiA = ATDiA \ eye( size( ATDiA, 2 ) );
                 T = zeros( size( obj.Theta ) );
                 for Q = 1:M
-                    W = ATDiA * A{ Q }.' * Di;
-                    T = T + W * obj.Bi( :, Q );
+                    try
+                        W = ATDiA * A{ Q }.' * Di;
+                        T = T + W * obj.Bi( :, Q );
+                    catch
+                    end
                 end
                 StopTheta = 100 * norm(obj.Theta - T ) / norm( T );
                 StopTheta = ( StopTheta < 0.0001 );
@@ -107,8 +125,11 @@ classdef em < mle
                 %----------------------------------------------------------
                 D_ = zeros( size( obj.D ) );
                 for Q = 1:M
-                    R = ( obj.Bi - A{ Q } * obj.Theta );
-                    D_ = C{ Q } + R * R.';
+                    try
+                        R = ( obj.Bi - A{ Q } * obj.Theta );
+                        D_ = C{ Q } + R * R.';
+                    catch
+                    end
                 end
                 D_ = D_ / M;
                 W = obj.getOmega( D_ );
@@ -171,15 +192,41 @@ classdef em < mle
             % A     --> (1xm) cell of level-2 regression matrices
             % B     --> (pxm) Matrix of level-1 model coefficients
             %--------------------------------------------------------------
+            P = any( B ~= 0 );                                              % Data present
             M = size( B, 2 );                                               % Number of sweeps
             %--------------------------------------------------------------
             % Initialise the sums
             %--------------------------------------------------------------
-            ATA = A{ 1 }.'*A{ 1 };
-            ATB = A{ 1 }.'*B( :, 1 );
-            for Q = 2:M
-                ATA = ATA + A{ Q }.'*A{ Q };
-                ATB = ATB + A{ Q }.'*B( :, Q );
+            ATA = [];
+            ATB = [];
+            for Q = 1:M
+                if P( Q )
+                    %------------------------------------------------------
+                    % Process non-zero data only
+                    %------------------------------------------------------
+                    if isempty( ATA )
+                        %--------------------------------------------------
+                        % Initialise sum
+                        %--------------------------------------------------
+                        ATA = A{ Q }.'*A{ Q };
+                    else
+                        %--------------------------------------------------
+                        % Update sum
+                        %--------------------------------------------------
+                        ATA = ATA + A{ Q }.'*A{ Q };
+                    end
+                    if isempty( ATB )
+                        %--------------------------------------------------
+                        % Initialise sum
+                        %--------------------------------------------------
+                        ATB = A{ Q }.'*B( :, Q );
+                    else
+                        %--------------------------------------------------
+                        % Update sum
+                        %--------------------------------------------------
+                        ATB = ATB + A{ Q }.'*B( :, Q );
+                    end
+                end
             end
             I = eye( size( ATA, 1 ) );
             ATA = ATA\I;

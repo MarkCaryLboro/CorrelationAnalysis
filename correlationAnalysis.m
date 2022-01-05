@@ -232,6 +232,23 @@ classdef correlationAnalysis
             H = obj.ReportObj.hypothesisTest( A, P );
         end % hypothesisTest
         
+        function Z = predictions( obj, X )
+            %--------------------------------------------------------------
+            % Calculate predictions
+            %
+            % Z = obj.predictions( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> Ageing conditions ( R x #factors );
+            %
+            % Output Arguments:
+            %
+            % Z     --> ( R x P ) matrix of level-1 coefficient vectors
+            %--------------------------------------------------------------
+            Z = obj.ModelObj.predictions( X );
+        end % predictions
+        
         function Ax = plot( obj )
             %--------------------------------------------------------------
             % Plot the data

@@ -265,8 +265,7 @@ classdef ( Abstract = true ) correlationDesign < handle
         function Dc = code( obj, D )
             %--------------------------------------------------------------
             % Code the level-2 covariate data onto the interval
-            % [ A, B ] --> [ -1, 1 ]. Categorical variables are not
-            % affected by the coding.
+            % [ A, B ] --> [ -1, 1 ]. 
             %
             % Dc = obj.code( D );
             %
