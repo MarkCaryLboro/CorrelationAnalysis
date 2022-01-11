@@ -33,7 +33,7 @@ function [ obj, Ax ] = pulseTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     % Define design object
     %----------------------------------------------------------------------
-    DesObj = rateDesign();
+    DesObj = pulseDesign();
     NumFac = max( size( Factors ) );
     for Q = 1:NumFac
         if Factors( Q ).Cat

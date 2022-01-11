@@ -193,8 +193,9 @@ classdef correlationRateReport < correlationReport
             end
         end % surf
         
-        function cont( obj, varargin )                                               
-            % contour plots for Bo and B1 for a given facility
+        function cont( obj, N )                     
+            %--------------------------------------------------------------
+            % contour plots for Bo and B1 for all facilities
         end % cont
         
         function Ax = compare( obj, Facs, N )

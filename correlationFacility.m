@@ -1,5 +1,6 @@
 classdef correlationFacility < int8
     enumeration
+        Reference   (0)
         Lancaster   (3)
         Imperial    (2)
         Warwick     (4)
