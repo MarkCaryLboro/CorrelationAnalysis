@@ -1,4 +1,4 @@
-function [ obj, Ax ] = pulseTestAnalysis( ModelType, Factors )
+function [ obj, DataObj, Ax ] = pulseTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
