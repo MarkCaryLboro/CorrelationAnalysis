@@ -1,4 +1,4 @@
-function [ obj, Ax ] = rateTestAnalysis( ModelType, Factors )
+function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
@@ -25,6 +25,7 @@ function [ obj, Ax ] = rateTestAnalysis( ModelType, Factors )
     %
     % obj           --> correlationAnalysis object
     % Ax            --> Data plot axes handle array
+    % ResAx         --> Residual plot axes handle array
     %----------------------------------------------------------------------
     arguments
         ModelType   (1,1)   string
@@ -86,4 +87,34 @@ function [ obj, Ax ] = rateTestAnalysis( ModelType, Factors )
     %----------------------------------------------------------------------
     Ax = obj.plot();
     obj = obj.fitModel();
+    %----------------------------------------------------------------------
+    % plot the model residuals
+    %----------------------------------------------------------------------
+    A = obj.getData( true );
+    Idx = ( A.Cycle == 1 );
+    A = A( Idx, obj.FacNames );
+    A = table2array( A );
+    Bp = obj.predictions( A );
+    Res = obj.ModelObj.B.' - Bp;
+    figure;
+    ResAx = subplot( 1, 2, 1 );
+    H = plot( Bp( :, 1 ), Res( :, 1 ), 'ko' );
+    H.MarkerFaceColor = "Black";
+    grid on
+    ResAx.GridColor = [0.025 0.025 0.025];
+    ResAx.GridLineStyle = "--";
+    ResAx.GridAlpha = 0.75;
+    xlabel( "Predicted \beta_0", "FontSize", 14 );
+    ylabel( "Residual \beta_0", "FontSize", 14 );
+    title( "Intercept", "FontSize", 16 );
+    ResAx( 2, 1 ) = subplot( 1, 2, 2 );
+    H = plot( Bp( :, 2 ), Res( :, 2 ), 'ko' );
+    H.MarkerFaceColor = "Black";
+    grid on
+    ResAx( 2, 1 ).GridColor = [0.025 0.025 0.025];
+    ResAx( 2, 1 ).GridLineStyle = "--";
+    ResAx( 2, 1 ).GridAlpha = 0.75;
+    xlabel( "Predicted \beta_1", "FontSize", 14 );
+    ylabel( "Residual \beta_1", "FontSize", 14 );
+    title( "Slope", "FontSize", 16 );
 end % rateTestAnalysis
