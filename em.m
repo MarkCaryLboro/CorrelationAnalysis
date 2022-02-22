@@ -68,7 +68,9 @@ classdef em < mle
             B = B( :, P );
             [ Sz, M ] = size( B );
             StopFlg = false;
+            Iteration = 0;
             while ~StopFlg
+                Iteration = Iteration + 1;
                 Di = obj.D\eye( Sz );
                 obj.Bi = zeros( size( B ) );
                 C = cell( 1, Sz );
@@ -114,7 +116,9 @@ classdef em < mle
                     catch
                     end
                 end
-                StopTheta = 100 * norm(obj.Theta - T ) / norm( T );
+                StopTheta = norm(obj.Theta - T ) / norm( T );
+                fprintf('\n Iteration %3.0f: StopTheta = %6.5f', ...
+                                                    Iteration, StopTheta );
                 StopTheta = ( StopTheta < 0.0001 );
                 obj.Theta = T;
                 %----------------------------------------------------------
@@ -133,7 +137,8 @@ classdef em < mle
                 end
                 D_ = D_ / M;
                 W = obj.getOmega( D_ );
-                StopOmega = 100 * ( norm( obj.Omega - W ) / norm( W ) );
+                StopOmega = ( norm( obj.Omega - W ) / norm( W ) );
+                fprintf(', StopOmega = %6.5f\n', StopOmega );
                 StopOmega = ( StopOmega < 0.0001 );
                 obj.Omega = W;
                 StopFlg = ( StopTheta & StopOmega );

@@ -12,6 +12,7 @@ classdef correlationAnalysis
         MatchedData 	              table                                 % Matched data to design
         Response    (1,1)             string      = "DischargeCapacity"     % Response variable
         RespUnits   (1,1)             string      = "[Ah]"                  % Response units
+        Xname       (1,1)             string      = "Cycle"                 % Level-1 covariate variable
     end
     
     properties ( SetAccess = protected, Dependent = true )
@@ -267,6 +268,7 @@ classdef correlationAnalysis
                 case "rate"
                     Ax = obj.plotRateData( D );
                 case "pulse"
+                    Ax = obj.plotPulseData( D );
                 case "capacity"
             end
             %--------------------------------------------------------------
@@ -304,7 +306,7 @@ classdef correlationAnalysis
             %--------------------------------------------------------------
             arguments
                 obj
-                Response    (1,1)   string  = "DischargeCapacity"
+                Response    (1,1)   string  
             end
             Dvars = obj.DataObj.Variables;
             Ok = strcmpi( Response, Dvars );
@@ -321,6 +323,36 @@ classdef correlationAnalysis
                          Response );
             end
         end % setResponse
+        
+        function obj = setXname( obj, Xlvl1 )
+            %--------------------------------------------------------------
+            % Set the level-1 covariate name
+            %
+            % obj = obj.setXname( Xlvl1 );
+            %
+            % Input Arguments:
+            %
+            % Xlvl1  --> (string) Level-1 covariate
+            %--------------------------------------------------------------
+            arguments
+                obj     (1,1)   correlationAnalysis
+                Xlvl1   (1,1)   string
+            end
+            Dvars = obj.DataObj.Variables;
+            Ok = strcmpi( Xlvl1, Dvars );
+            if any( Ok )
+                %----------------------------------------------------------
+                % Assign the variable
+                %----------------------------------------------------------
+                obj.Xname = Dvars( Ok );
+            else
+                %----------------------------------------------------------
+                % Variable not found
+                %----------------------------------------------------------
+                warning('Variable "%s" not present in datastore',...
+                         Xlvl1 );
+            end
+        end % setXname
         
         function D = getData( obj, Convert2Double )
             %--------------------------------------------------------------
@@ -402,13 +434,57 @@ classdef correlationAnalysis
         function M = get.NumTests( obj )
             % retrieve the number of cells
             T = obj.DataObj.DataTable;
-            T = T( :, obj.FacNames );
+            T = T( :, "SerialNumber" );
             T = unique( T, 'rows' );
-            M = height( T )*obj.DesignObj.Reps;
+            M = height( T );
         end 
     end % get/set methods
     
-    methods ( Access = private )        
+    methods ( Access = private )   
+        function Ax = plotPulseData( obj, D )
+            %--------------------------------------------------------------
+            % Plot the raw rate data sweeps for all institutions
+            %
+            % Ax = obj.plotPulseData( D );
+            %
+            % Input Arguments:
+            %
+            % D     --> (table) Data table 
+            %--------------------------------------------------------------
+            Facs = obj.DesignObj.Factor;
+            NumFac = Facs.NumLevels;
+            Lvls = obj.DesignObj.Factor.Levels{ : };
+            Color = [ "red", "blue", "green", "magenta", "black" ].';
+            figure;
+            Ax = axes;
+            Ax = repmat( Ax, 1, NumFac );
+            for Q = 1:NumFac
+                %----------------------------------------------------------
+                % Plot the data
+                %----------------------------------------------------------
+                Ax( Q ) = subplot( 3, 2, Q );                               
+                Ax( Q ).NextPlot = "add";                                   
+                Fidx = ( double( Lvls( Q ) ) == D.Facility );
+                Sn = unique( D( Fidx, "SerialNumber" ), "stable" );
+                Sn = table2cell( Sn );
+                N = numel( Sn );
+                for S = 1:N
+                    Sidx = strcmpi( Sn{ S }, D.SerialNumber );
+                    X = D{ Sidx, obj.Xname };
+                    Y = D{ Sidx, obj.Response };
+                    Marker = strjoin( [ "s", Color( Q ) ], "" );
+                    plot( Ax( Q ), X, Y, Marker, "MarkerFaceColor", Color( Q ) );
+                    Ax( Q ).GridAlpha = 0.75;
+                    Ax( Q ).GridLineStyle = "--";
+                    Ax( Q ).GridColor = [0.025 0.025 0.025];
+                    grid on;
+                    xlabel( obj.Xname, "FontSize", 14 );
+                    ylabel( obj.Response, "FontSize", 14 );
+                    title( string( Lvls( Q ) ), "FontSize", 16 );
+                end
+            end
+        end % plotPulseData
+        
         function Ax = plotRateData( obj, D )
             %--------------------------------------------------------------
             % Plot the raw rate data sweeps for all institutions
@@ -466,7 +542,7 @@ classdef correlationAnalysis
                     axes( Ax( L ) );                                        %#ok<LAXES>
                     Idx = all( ( X{:,ConFacs.'} == Lvls( L, : ) ), 2 );
                     Xd = X( Idx, : );
-                    H = plot( Xd.Cycle, Xd.( obj.Response ), 's' );
+                    H = plot( Xd.( obj.Xname), Xd.( obj.Response ), 's' );
                     if ~isempty( H )
                         H.MarkerSize = 8;
                         H.MarkerFaceColor = Color( F, : );
@@ -513,8 +589,9 @@ classdef correlationAnalysis
             %--------------------------------------------------------------
             switch obj.TestType
                 case "rate"
-                    S = genRateOpts( obj );
+                    S = obj.genRateOpts();
                 case "pulse"
+                    S = obj.genPulseOpts();
                 case "capacity"
                 otherwise
                     error('Test type "%s" not recognised', obj.TestType );
@@ -532,6 +609,17 @@ classdef correlationAnalysis
             S.Yname = obj.Response;
         end % genRateOpts
         
+        function S = genPulseOpts( obj )
+            %--------------------------------------------------------------
+            % Generate analysis argument structure for pulse test
+            %
+            % S = obj.genPulseOpts();
+            %--------------------------------------------------------------
+            S.NumTests = double( obj.NumTests );
+            S.Xname = "SoC";
+            S.Yname = obj.Response;
+        end % genPulseOpts
+        
         function A = getDefaultCon( obj )
             %--------------------------------------------------------------
             % Retrieve default contrast vector
@@ -542,7 +630,7 @@ classdef correlationAnalysis
         end % getDefaultCon
     end % private methods
     
-    methods ( Static = true, Access = protected )
+    methods ( Static = true, Access = protected )    
         function commonAxesLimits( Ax )
             %--------------------------------------------------------------
             % Enusre subplots have common axes limits

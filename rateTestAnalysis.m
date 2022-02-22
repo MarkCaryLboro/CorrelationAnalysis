@@ -1,8 +1,8 @@
-function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors )
+function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors, Response, Xname )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
-    % obj = rateTestAnalysis( ModelType, Factors );
+    % obj = rateTestAnalysis( ModelType, Factors, Response, Xname );
     %
     % Input Arguments:
     %
@@ -20,6 +20,8 @@ function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors )
     %                   Values: (cell) possible numerical values for 
     %                           categories
     %                   Cats:   (string) vector of category names
+    % Response      --> (string) name of response variable
+    % Xname         --> (string) name of level-1 covariate
     %
     % Output Arguments:
     %
@@ -30,6 +32,8 @@ function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors )
     arguments
         ModelType   (1,1)   string
         Factors     (1,:)   struct
+        Response    (1,1)   string          = "DischargeCapacity"
+        Xname       (1,1)   string          = "Cycle"
     end
     %----------------------------------------------------------------------
     % Define design object
@@ -82,6 +86,12 @@ function [ obj, Ax, ResAx ] = rateTestAnalysis( ModelType, Factors )
     % Define the analysis object
     %----------------------------------------------------------------------
     obj = correlationAnalysis( DataObj, DesObj, M, RepObj );
+    %----------------------------------------------------------------------
+    % Define the response variable
+    %----------------------------------------------------------------------
+    obj = obj.setResponse( Response );
+    obj = obj.setRespUnits( "[Ah]");
+    obj = obj.setXname( Xname );
     %----------------------------------------------------------------------
     % Plot the data & fit the model
     %----------------------------------------------------------------------

@@ -260,7 +260,6 @@ classdef ( Abstract = true ) correlationDesign < handle
                             'WriteRowNames', true );
             end
         end % testPlan
-        
 
         function Dc = code( obj, D )
             %--------------------------------------------------------------

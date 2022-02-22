@@ -88,13 +88,47 @@ classdef ( Abstract = true ) correlationDataStore < handle
             end
         end % addData
         
+        function obj = trimData( obj, Channel, A, B )
+            %--------------------------------------------------------------
+            % Trim the a data channel to lay within the interval [A, B]
+            %
+            % obj = trimData( obj, Channel, A, B );
+            %
+            %
+            % Input Arguments
+            %
+            % Channel   --> (string) Channel to restrict levels
+            % A         --> (double) Lower bound for required interval
+            % B         --> (double) upper bound for required interval
+            %--------------------------------------------------------------
+            arguments
+                obj     (1,1)
+                Channel (1,1)   string      { mustBeNonempty( Channel ) }
+                A       (1,1)   double      { mustBeNonempty( A ) }
+                B       (1,1)   double      { mustBeNonempty( B ) }
+            end
+            Ok = contains( Channel, obj.Variables, 'IgnoreCase', true );
+            Lo = min( [A, B] );
+            Hi = max( [A, B] );
+            if Ok
+                %----------------------------------------------------------
+                % Remove data external to the interval
+                %----------------------------------------------------------
+                Idx = ( obj.DataTable.( Channel ) >= Lo ) &...
+                      ( obj.DataTable.( Channel ) <= Hi );
+                obj.DataTable = obj.DataTable( Idx, : );
+            else
+                obj.missingChannels( Channel );
+            end
+        end % trimData
+        
         function T = extractData( obj, Channels )
             %--------------------------------------------------------------
             % Extract data from the data table
             %
             % T = obj.extractData( Channels );
             %
-            % Input Channels
+            % Input Argumments
             %
             % Channels  --> (string) List of channels to extract
             %--------------------------------------------------------------

@@ -1,12 +1,12 @@
-classdef correlationRateReport < correlationReport
+classdef  correlationPulseReport < correlationReport
     % Generate reports for the facility correlation rate test
     
     methods
-        function obj = correlationRateReport( M )
+        function obj = correlationPulseReport( M )
             %--------------------------------------------------------------
             % class constructor
             %
-            % obj = correlationRateReport( M )
+            % obj = correlationPulseReport( M )
             %
             % Input Arguments:
             %
@@ -18,6 +18,7 @@ classdef correlationRateReport < correlationReport
             %--------------------------------------------------------------
             obj.M = M;
         end % Constructor
+        
         
         function T = hypothesisTest( obj, A, P )
             %--------------------------------------------------------------
@@ -247,26 +248,6 @@ classdef correlationRateReport < correlationReport
                 xlabel( "CRate", 'FontSize', 16 );
                 ylabel( "Temperature", 'FontSize', 16 );
             end
-        end % compare
-    end % ordinary methods
-    
-    methods ( Access = private )
-        function X = makeLevels( obj, Factor, N )
-            %--------------------------------------------------------------
-            % Make a n-element vector for any specified factor
-            %
-            % X = obj.makeLevels( Factor, N );
-            %
-            % Input Arguments:
-            %
-            % Factor    --> Name of factor
-            % N         --> Number of levels
-            %--------------------------------------------------------------
-            Idx = strcmpi( Factor, obj.M.FacNames );
-            D = obj.M.Design;
-            Mn = D.Factor{ Idx, "Min" };
-            Mx = D.Factor{ Idx, "Max" };
-            X = linspace( Mn, Mx, N );
-        end % makeLevels
-    end % private methods
-end % correlationRateReport
+        end % compare        
+    end % ordinary and constructor methods
+end % classdef
