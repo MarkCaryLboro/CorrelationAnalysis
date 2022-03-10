@@ -25,7 +25,6 @@ classdef ( Abstract = true ) correlationModel < handle
         F       (1,:)   cell                                                % Level-1 information matrix
         Syms    (1,:)   string                                              % basis function list
     end % protected properties    
-    
         
     properties ( SetAccess = protected, Dependent = true )
         Theta   (:,1)   double                                              % Level-2 regression coefficients
@@ -193,6 +192,26 @@ classdef ( Abstract = true ) correlationModel < handle
             IxQ = X( :, ContL ).*Q;
         end % quadTerms
         
+        function C = cubicCatTerms( obj, X )
+            %--------------------------------------------------------------
+            % Return matrix of cubic terms if a categorical factor has 4
+            % or more levels.
+            %
+            % Q = obj.cubicCatTerms( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> (double) data in coded units
+            %
+            % Output Arguments:
+            %
+            % C     --> Pure cubic terms
+            %--------------------------------------------------------------
+            Cat = ( obj.Factor.Type == "CATEGORICAL" ).';
+            CatQ = Cat & ( obj.Factor.NumLevels.' > 3 );
+            C = X( :, CatQ ).^3;
+        end % cubicCatTerms
+        
         function Q = quadCatTerms( obj, X )
             %--------------------------------------------------------------
             % Return matrix of quadratic terms if a categorical factor has
@@ -208,6 +227,29 @@ classdef ( Abstract = true ) correlationModel < handle
             CatQ = Cat & ( obj.Factor.NumLevels.' > 2 );
             Q = X( :, CatQ ).^2;
         end % quadCatTerms
+ 
+        
+        function Ccat = getCatPureCubicSyms( obj, S )
+            %--------------------------------------------------------------
+            % Return pure cubic terms for categorical factors
+            %
+            % Ccat = obj.getCatPureQuadSyms( S );
+            %
+            % input Arguments:
+            %
+            % S     --> (string) Linear factor symbols list
+            %--------------------------------------------------------------
+            Cat = ( obj.Factor.Type == "CATEGORICAL" ).';
+            Cat = Cat & ( obj.Factor.NumLevels.' > 3 );
+            K = 0;
+            Ccat = string.empty( 0, sum( Cat ) );
+            for Q = 1:obj.NumFac
+                if ( Cat( Q ) )
+                    K = K + 1;
+                    Ccat( K ) = strjoin( [ S( Q ), "3" ], "^" );
+                end
+            end
+        end % getCatPureCubicSyms
         
         function Qcat = getCatPureQuadSyms( obj, S )
             %--------------------------------------------------------------

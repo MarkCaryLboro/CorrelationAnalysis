@@ -474,14 +474,14 @@ classdef correlationAnalysis
                     Y = D{ Sidx, obj.Response };
                     Marker = strjoin( [ "s", Color( Q ) ], "" );
                     plot( Ax( Q ), X, Y, Marker, "MarkerFaceColor", Color( Q ) );
-                    Ax( Q ).GridAlpha = 0.75;
-                    Ax( Q ).GridLineStyle = "--";
-                    Ax( Q ).GridColor = [0.025 0.025 0.025];
-                    grid on;
-                    xlabel( obj.Xname, "FontSize", 14 );
-                    ylabel( obj.Response, "FontSize", 14 );
-                    title( string( Lvls( Q ) ), "FontSize", 16 );
                 end
+                Ax( Q ).GridAlpha = 0.75;
+                Ax( Q ).GridLineStyle = "--";
+                Ax( Q ).GridColor = [0.025 0.025 0.025];
+                grid on;
+                xlabel( obj.Xname, "FontSize", 14 );
+                ylabel( obj.Response, "FontSize", 14 );
+                title( string( Lvls( Q ) ), "FontSize", 16 );
             end
         end % plotPulseData
         
@@ -660,9 +660,9 @@ classdef correlationAnalysis
                  end
             end
             for Q = 1:N
-                Ax( Q ).XLim = [ XMin, XMax ];
-                Ax( Q ).YLim = [ YMin, YMax ];
-                Ax( Q ).ZLim = [ ZMin, ZMax ];
+                Ax( Q ).XLim = [ XMin, 1.25*XMax ];
+                Ax( Q ).YLim = [ YMin, 1.25*YMax ];
+                Ax( Q ).ZLim = [ ZMin, 1.25*ZMax ];
             end
         end % commonAxesLimits
     end % static and protected methods

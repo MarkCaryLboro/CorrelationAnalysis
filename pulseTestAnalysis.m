@@ -1,13 +1,13 @@
-function [ obj, DataObj, Ax, ResAx ] = pulseTestAnalysis( ModelType, Factors, Response, Xname )
+function [ obj, Ax, H] = pulseTestAnalysis( ModelType, Factors, Response, Xname )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
-    % obj = pulseTestAnalysis( ModelType, Factors, Response );
+    % obj = pulseTestAnalysis( ModelType, Factors, Response, Xname );
     %
     % Input Arguments:
     %
     % ModelType     --> Model type either: {"linear"},
-    %                   "interaction", "quadratic" or "complete"
+    %                   "interaction", "quadratic", "cubic" or "complete"
     % Factors       --> (struct) multidimensional structure defining the
     %                   experimental factors. Each dimension defines an
     %                   individual factor, using fields:
@@ -27,7 +27,6 @@ function [ obj, DataObj, Ax, ResAx ] = pulseTestAnalysis( ModelType, Factors, Re
     %
     % obj           --> correlationAnalysis object
     % Ax            --> Data plot axes handle array
-    % ResAx         --> Residual plots axes handle array
     %----------------------------------------------------------------------
     arguments
         ModelType   (1,1)   string     
@@ -39,6 +38,7 @@ function [ obj, DataObj, Ax, ResAx ] = pulseTestAnalysis( ModelType, Factors, Re
     % Define design object
     %----------------------------------------------------------------------
     DesObj = pulseDesign();
+    DesObj = DesObj.setReplicates( 18 );
     NumFac = max( size( Factors ) );
     for Q = 1:NumFac
         if Factors( Q ).Cat
@@ -63,7 +63,11 @@ function [ obj, DataObj, Ax, ResAx ] = pulseTestAnalysis( ModelType, Factors, Re
     %----------------------------------------------------------------------
     [ Fname, Pname ] = uigetfile( "*.xlsx",...
                                   "Select File Containing Pulse Data" );
-    Fname = strjoin( { Pname, Fname }, "" );
+    try
+        Fname = strjoin( { Pname, Fname }, "" );
+    catch
+        error("Must select a data file - program terminated!");
+    end
     DataObj = pulseData();
     DataObj = DataObj.addData( Fname );
     %----------------------------------------------------------------------
@@ -98,6 +102,31 @@ function [ obj, DataObj, Ax, ResAx ] = pulseTestAnalysis( ModelType, Factors, Re
     Ax = obj.plot();
     obj = obj.fitModel();
     %----------------------------------------------------------------------
-    % plot the model residuals
+    % Add the model prediction to the plots
     %----------------------------------------------------------------------
+    Xsoc = linspace( 0.1, 0.9, 101 ).';
+    A = unique( obj.DataObj.DataTable( :, obj.Facility ) );
+    A = table2array( A );
+    A = correlationFacility( A(:) );
+    Z = obj.predictions( A );                                               % compute the level-1 coefficients
+    Z = Z.';
+    %----------------------------------------------------------------------
+    % Compute the level-1 basis fcn matrix
+    %----------------------------------------------------------------------
+    Kc = obj.ModelObj.codeSoC( 0.5 );                                       % spline knot
+    X = obj.ModelObj.codeSoC( Xsoc ); 
+    Xs = max( [zeros( size( X ) ), X - Kc ], [], 2 );
+    X = [ ones( size( X, 1 ), 1 ), X, X.^2, Xs.^2 ];    
+%     %----------------------------------------------------------------------
+%     % Compute the predictions
+%     %----------------------------------------------------------------------
+%     Yp = X * Z;
+%     for Q = 1:obj.NumFacLvl
+%         plot( Ax( Q ), Xsoc, Yp( :, Q ), "c-", 'LineWidth', 2 );
+%     end
+%     %----------------------------------------------------------------------
+%     % Hypothesis test
+%     %----------------------------------------------------------------------
+%     A = obj.ModelObj.getDefaultCon();
+%     H = obj.hypothesisTest( A, 0.05 );
 end % pulseTestAnalysis

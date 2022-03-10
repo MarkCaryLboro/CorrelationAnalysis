@@ -273,7 +273,7 @@ classdef ( Abstract = true ) correlationDesign < handle
             % D     --> Engineering data vector
             %--------------------------------------------------------------
             [ G, C ] = obj.codeVars();
-            Dc = G .* D + C;
+            Dc = G .* double( D ) + C;
         end % code 
         
         function D = decode( obj, Dc )

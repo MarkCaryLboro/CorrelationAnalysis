@@ -16,15 +16,6 @@ classdef pulseModel < correlationModel
     properties ( SetAccess = protected )
     end % protected properties    
     
-%     properties ( SetAccess = protected, Dependent = true )
-%         Theta   (:,1)   double                                              % Level-2 regression coefficients
-%         Omega   (1,3)   double                                              % Level-2 covariance model coefficients
-%         D               double                                              % Level-2 covariance matrix
-%         C               double                                              % level-2 correlation matrix
-%         T               double                                              % level-2 standard errors
-%         CovQ            double                                              % Covariance matrix for Theta
-%     end % Dependent properties    
-    
     methods
         function obj = pulseModel( DesignObj, MleObj, ModelType )
             %--------------------------------------------------------------
@@ -38,7 +29,8 @@ classdef pulseModel < correlationModel
             % Algorithm     --> algorithm type. Must be an mleAlgorithms
             %                   object
             % ModelType     --> Model type either: {"linear"},
-            %                   "interaction", "quadratic" or "complete"
+            %                   "interaction", "quadratic", "cubic"
+            %                   or "complete"
             %--------------------------------------------------------------
             arguments
                 DesignObj   (1,1)   pulseDesign         { mustBeNonempty( DesignObj ) }
@@ -71,11 +63,11 @@ classdef pulseModel < correlationModel
             % Input Arguments:
             %
             % ModelStr  --> (string) Required model, either "linear",
-            %               "interaction", "quadratic" or "complete".
+            %               "interaction", "quadratic", "cubic"
+            %               or "complete".
             %--------------------------------------------------------------
             try
                 obj.Model = ModelStr;
-                obj = obj.setModelSyms();
             catch
                 warning('Property "Model" not changed');
             end
@@ -109,6 +101,11 @@ classdef pulseModel < correlationModel
             catch
                 Qcat = [];
             end
+            try
+                Ccat = obj.getCatPureCubicSyms( S );
+            catch
+                Ccat = [];
+            end
             switch string( obj.Model )
                 case "interaction"
                     %------------------------------------------------------
@@ -120,6 +117,11 @@ classdef pulseModel < correlationModel
                     % Quadratic Terms Required
                     %------------------------------------------------------
                     S = [ S Int Qcon Qcat ];
+                case "cubic"
+                    %------------------------------------------------------
+                    % Cubic terms required
+                    %------------------------------------------------------
+                    S = [ S Int Qcon Qcat Ccat ];
                 case "complete"
                     S = [ S Int Qcon IQcon Qcat ];
             end
@@ -154,6 +156,7 @@ classdef pulseModel < correlationModel
             Zquad = [];
             ZIxQ = [];
             ZQcat = [];
+            ZCcat = [];
             switch obj.Model
                 case "interaction"
                     try
@@ -170,6 +173,15 @@ classdef pulseModel < correlationModel
                         error('Cannot construct level-2 model of type "%s"',...
                                     obj.Model );
                     end
+                case "cubic"
+                    try
+                        Zquad = obj.quadTerms( X );
+                        ZQcat = obj.quadCatTerms( X );
+                        ZCcat = obj.cubicCatTerms( X );
+                    catch
+                        error('Cannot construct level-2 model of type "%s"',...
+                                    obj.Model );
+                    end
                 case "complete"
                     try
                         [ Zquad, ZIxQ ] = obj.quadTerms( X );
@@ -180,7 +192,7 @@ classdef pulseModel < correlationModel
                                     obj.Model );
                     end
             end
-            Z = [ ones( R, 1 ), Z,  Zint, Zquad, ZIxQ, ZQcat ];
+            Z = [ ones( R, 1 ), Z,  Zint, Zquad, ZIxQ, ZQcat ZCcat ];
             A = cell( 1, R );
             NumLv1Coeff = size( obj.B, 1 );
             for Q = 1:R
@@ -204,7 +216,7 @@ classdef pulseModel < correlationModel
             %--------------------------------------------------------------
             arguments
                 obj     (1,1)   rateModel       { mustBeNonempty( obj ) }
-                Model   (1,1)   string          { mustBeMember( Model, [ "linear", "quadratic"  ])} = "linear" 
+                Model   (1,1)   string          { mustBeMember( Model, [ "linear", "quadratic", "cubic"  ])} = "linear" 
             end            
             try
                 obj.Model = supportedModelType( Model );
@@ -291,7 +303,7 @@ classdef pulseModel < correlationModel
                     X = L{ I, "SoC" };
                     X = obj.socCode( X );
                     Xs = max( [zeros( size( X ) ), X - Kc ], [], 2 );
-                    X = [ ones( size( X, 1 ), 1 ), X, X.^2, Xs.^3 ];        %#ok<AGROW>
+                    X = [ ones( size( X, 1 ), 1 ), X, X.^2, Xs.^2 ];        %#ok<AGROW>
                     Y = L{ I, Yname };
                     %------------------------------------------------------
                     % Eliminate any NaNs
@@ -318,6 +330,30 @@ classdef pulseModel < correlationModel
             F = cellfun( @( X )times( X, 1/S2 ), F, 'UniformOutput', false );
         end % level1Fits   
         
+        function A = getDefaultCon( obj )
+            %--------------------------------------------------------------
+            % Retrieve default contrast vector
+            %
+            % A = getDefaultCon();
+            %--------------------------------------------------------------
+            N = obj.Design.Factor.NumLevels;
+            X = cell( 1, N );
+            Xc = zeros( N, 1 );
+            for Q = 1:N
+                Xc( Q ) = obj.Design.code( Q );
+                X{ Q } = obj.basis( Xc( Q ) );
+            end
+            Idx = ( Xc == 0 );
+            R = X{ Idx };
+            X = X( ~Idx );
+            N = numel( X );
+            A = N * R{ : };
+            for Q = 1:N
+                C = X{ Q };
+                A = A - C{:};
+            end
+        end % getDefaultCon        
+        
         function A = getAi( obj, D )
             %--------------------------------------------------------------
             % Return the cell array of level-2 regression matrices
@@ -332,7 +368,25 @@ classdef pulseModel < correlationModel
             A = table2array( A );
             A = obj.Design.code( A );
             A = obj.basis( A );
-        end % getAi          
+        end % getAi       
+        
+        function Xc = codeSoC( obj, X )
+            %--------------------------------------------------------------
+            % Code SoC data
+            %
+            % Xc = obj.codeSoC( X );
+            %
+            % Input Arguments:
+            %
+            % X     --> Vector of soc data assumed to be in the interval
+            %           [0,1].
+            %
+            % Output Arguments:
+            %
+            % Xc    --> Vector of coded soc data [0,1] --> [-1, 1]
+            %--------------------------------------------------------------
+            Xc = obj.socCode( X );
+        end % codeSoC
     end % constructor and ordinary methods
     
     methods ( Access = protected, Static = true )

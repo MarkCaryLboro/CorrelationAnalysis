@@ -141,7 +141,7 @@ classdef em < mle
                 fprintf(', StopOmega = %6.5f\n', StopOmega );
                 StopOmega = ( StopOmega < 0.0001 );
                 obj.Omega = W;
-                StopFlg = ( StopTheta & StopOmega );
+                StopFlg = StopTheta || StopOmega || ( Iteration >= 20 );
             end
         end % costFcn
     end % constructor and ordinary methods

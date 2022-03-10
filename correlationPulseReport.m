@@ -16,9 +16,11 @@ classdef  correlationPulseReport < correlationReport
             %            "correlationCapacityReport"
             %            "correlationPulseReport"
             %--------------------------------------------------------------
+            arguments
+                M   (1,1)   pulseModel  { mustBeNonempty( M ) }
+            end
             obj.M = M;
         end % Constructor
-        
         
         function T = hypothesisTest( obj, A, P )
             %--------------------------------------------------------------
@@ -44,7 +46,17 @@ classdef  correlationPulseReport < correlationReport
                 P       (1,1)   double                  { mustBeNumeric( P ),...
                                                           mustBeReal( P ) } = 0.05
             end
-            Theta = obj.M.Theta;                                            % Level-2 model parameters
+            try
+                %----------------------------------------------------------
+                % I have no idea why this is necessary but when the
+                % hypothesis test is run the object duplicates itself.
+                % Doesn't happen with the rate analysis.
+                %----------------------------------------------------------
+                Theta = obj.M.Theta;                                        % Level-2 model parameters
+            catch
+                obj.M = obj.M.M;
+                Theta = obj.M.Theta;                                        % Level-2 model parameters
+            end
             V = obj.M.CovQ;                                                 % Covariance matrix for theta
             DoF = size( A, 1 );                                             % Number of hypotheses
             obj = obj.setAlpha( P );                                        % Set the significance level

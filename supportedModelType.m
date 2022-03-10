@@ -5,6 +5,7 @@ classdef supportedModelType < int8
         interaction     ( 1 )
         quadratic       ( 2 )
         complete        ( 3 )
+        cubic           ( 4 )
     end
     
 end % supportedModelType
