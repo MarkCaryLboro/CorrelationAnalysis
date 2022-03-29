@@ -1,4 +1,4 @@
-function [ obj, Ax, H] = pulseTestAnalysis( ModelType, Factors, Response, Xname )
+function [ obj, Ax] = pulseTestAnalysis( ModelType, Factors, Response, Xname )
     %----------------------------------------------------------------------
     % Function to perform correlation analysis for the rate data.
     %
@@ -117,13 +117,13 @@ function [ obj, Ax, H] = pulseTestAnalysis( ModelType, Factors, Response, Xname 
     X = obj.ModelObj.codeSoC( Xsoc ); 
     Xs = max( [zeros( size( X ) ), X - Kc ], [], 2 );
     X = [ ones( size( X, 1 ), 1 ), X, X.^2, Xs.^2 ];    
-%     %----------------------------------------------------------------------
-%     % Compute the predictions
-%     %----------------------------------------------------------------------
-%     Yp = X * Z;
-%     for Q = 1:obj.NumFacLvl
-%         plot( Ax( Q ), Xsoc, Yp( :, Q ), "c-", 'LineWidth', 2 );
-%     end
+    %----------------------------------------------------------------------
+    % Compute the predictions
+    %----------------------------------------------------------------------
+    Yp = X * Z;
+    for Q = 1:obj.NumFacLvl
+        plot( Ax( Q ), Xsoc, Yp( :, Q ), "c-", 'LineWidth', 2 );
+    end
 %     %----------------------------------------------------------------------
 %     % Hypothesis test
 %     %----------------------------------------------------------------------
