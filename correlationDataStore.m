@@ -196,7 +196,7 @@ classdef ( Abstract = true ) correlationDataStore < handle
             %--------------------------------------------------------------
             % Read the xlsx file
             %--------------------------------------------------------------
-            [ ~, ~, Data ] = xlsread( FileName, 1, Range );
+            [ ~, ~, Data ] = xlsread( FileName, 1, Range );                 %#ok<XLSRD> 
             obj.Variables_ = string( Data( 1, : ) );
             obj.Units = string( Data( 2, : ) );
             Data = Data( ( 3:end ), : );
